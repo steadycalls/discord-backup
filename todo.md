@@ -161,3 +161,14 @@
 - [x] Implement autocomplete for meeting topics
 - [x] Add autocomplete UI component to meetings search
 - [ ] Test autocomplete performance with large datasets
+
+## Application Title Update
+- [ ] Update VITE_APP_TITLE in Settings UI to "LI Systems Manager"
+- [ ] Verify title appears correctly in all pages
+- [ ] Push changes to GitHub
+
+## Domain-Based Access Control
+- [x] Add email domain whitelist check in authentication callback
+- [x] Allow @logicinbound.com domain users to access the application
+- [ ] Test with different email domains
+- [ ] Push changes to GitHub
