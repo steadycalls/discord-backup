@@ -514,6 +514,27 @@ When answering questions:
         return { success: true };
       }),
   }),
+
+  // Analytics Routes
+  analytics: router({
+    getMeetingStats: protectedProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }))
+      .query(async ({ input }) => {
+        const { getMeetingAnalytics } = await import("./db");
+        const startDate = input.startDate ? new Date(input.startDate) : undefined;
+        const endDate = input.endDate ? new Date(input.endDate) : undefined;
+        return await getMeetingAnalytics(startDate, endDate);
+      }),
+    getSearchSuggestions: protectedProcedure
+      .input(z.object({ query: z.string().min(1), limit: z.number().optional() }))
+      .query(async ({ input }) => {
+        const { getSearchSuggestions } = await import("./db");
+        return await getSearchSuggestions(input.query, input.limit);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

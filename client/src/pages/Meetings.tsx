@@ -18,7 +18,14 @@ export default function Meetings() {
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const suggestionsQuery = trpc.analytics.getSearchSuggestions.useQuery(
+    { query: searchText, limit: 5 },
+    { enabled: isAuthenticated && searchText.length >= 2 }
+  );
 
   const meetingsQuery = trpc.meetings.filter.useQuery(
     {
@@ -181,13 +188,78 @@ export default function Meetings() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Search</label>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground z-10" />
                     <Input
-                      placeholder="Search title or summary..."
+                      ref={searchInputRef}
+                      placeholder="Search title, client, or participant..."
                       value={searchText}
-                      onChange={(e) => setSearchText(e.target.value)}
+                      onChange={(e) => {
+                        setSearchText(e.target.value);
+                        setShowSuggestions(true);
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                       className="pl-9"
                     />
+                    {showSuggestions && searchText.length >= 2 && suggestionsQuery.data && (
+                      (suggestionsQuery.data.clients.length > 0 ||
+                       suggestionsQuery.data.participants.length > 0 ||
+                       suggestionsQuery.data.topics.length > 0) && (
+                        <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                          {suggestionsQuery.data.clients.length > 0 && (
+                            <div className="p-2">
+                              <div className="text-xs font-semibold text-muted-foreground px-2 py-1">Clients</div>
+                              {suggestionsQuery.data.clients.map((client, idx) => (
+                                <button
+                                  key={`client-${idx}`}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm transition-colors"
+                                  onClick={() => {
+                                    setSearchText(client);
+                                    setShowSuggestions(false);
+                                  }}
+                                >
+                                  {client}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {suggestionsQuery.data.participants.length > 0 && (
+                            <div className="p-2 border-t">
+                              <div className="text-xs font-semibold text-muted-foreground px-2 py-1">Participants</div>
+                              {suggestionsQuery.data.participants.map((participant, idx) => (
+                                <button
+                                  key={`participant-${idx}`}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm transition-colors"
+                                  onClick={() => {
+                                    setSearchText(participant);
+                                    setShowSuggestions(false);
+                                  }}
+                                >
+                                  {participant}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {suggestionsQuery.data.topics.length > 0 && (
+                            <div className="p-2 border-t">
+                              <div className="text-xs font-semibold text-muted-foreground px-2 py-1">Topics</div>
+                              {suggestionsQuery.data.topics.map((topic, idx) => (
+                                <button
+                                  key={`topic-${idx}`}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent rounded-sm transition-colors"
+                                  onClick={() => {
+                                    setSearchText(topic);
+                                    setShowSuggestions(false);
+                                  }}
+                                >
+                                  {topic}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    )}
                   </div>
                 </div>
                 <div className="space-y-2">

@@ -510,3 +510,154 @@ export async function addClientMappingEmail(channelId: string, email: string, co
     contactName,
   });
 }
+
+// Analytics Functions
+export async function getMeetingAnalytics(startDate?: Date, endDate?: Date) {
+  const db = await getDb();
+  if (!db) return {
+    totalMeetings: 0,
+    meetingsByChannel: [],
+    meetingsByMonth: [],
+    topParticipants: [],
+    averageDuration: 0,
+  };
+  
+  const { meetings } = await import("../drizzle/schema");
+  
+  const conditions: SQL[] = [];
+  if (startDate) {
+    conditions.push(sql`${meetings.startTime} >= ${startDate}`);
+  }
+  if (endDate) {
+    conditions.push(sql`${meetings.startTime} <= ${endDate}`);
+  }
+  
+  let baseQuery = db.select().from(meetings);
+  if (conditions.length > 0) {
+    baseQuery = baseQuery.where(sql.join(conditions, sql` AND `)) as typeof baseQuery;
+  }
+  
+  const allMeetings = await baseQuery;
+  
+  // Total meetings
+  const totalMeetings = allMeetings.length;
+  
+  // Meetings by channel
+  const channelCounts: Record<string, number> = {};
+  allMeetings.forEach(meeting => {
+    if (meeting.matchedChannelId) {
+      channelCounts[meeting.matchedChannelId] = (channelCounts[meeting.matchedChannelId] || 0) + 1;
+    }
+  });
+  
+  const meetingsByChannel = Object.entries(channelCounts)
+    .map(([channelId, count]) => ({ channelId, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  
+  // Meetings by month
+  const monthCounts: Record<string, number> = {};
+  allMeetings.forEach(meeting => {
+    const date = meeting.startTime || meeting.receivedAt;
+    const monthKey = new Date(date).toISOString().substring(0, 7); // YYYY-MM
+    monthCounts[monthKey] = (monthCounts[monthKey] || 0) + 1;
+  });
+  
+  const meetingsByMonth = Object.entries(monthCounts)
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  
+  // Top participants
+  const participantCounts: Record<string, number> = {};
+  allMeetings.forEach(meeting => {
+    if (meeting.participants) {
+      const participants = meeting.participants.split(',').map(p => p.trim());
+      participants.forEach(participant => {
+        if (participant) {
+          participantCounts[participant] = (participantCounts[participant] || 0) + 1;
+        }
+      });
+    }
+  });
+  
+  const topParticipants = Object.entries(participantCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  
+  // Average duration (if we had duration data)
+  const averageDuration = 0; // Placeholder - would need start/end times
+  
+  return {
+    totalMeetings,
+    meetingsByChannel,
+    meetingsByMonth,
+    topParticipants,
+    averageDuration,
+  };
+}
+
+export async function getSearchSuggestions(query: string, limit: number = 10) {
+  const db = await getDb();
+  if (!db) return { clients: [], participants: [], topics: [] };
+  
+  const { meetings, clientMappings } = await import("../drizzle/schema");
+  
+  const searchPattern = `%${query}%`;
+  
+  // Get client name suggestions
+  const clientResults = await db
+    .select({ name: clientMappings.contactName })
+    .from(clientMappings)
+    .where(sql`${clientMappings.contactName} LIKE ${searchPattern}`)
+    .groupBy(clientMappings.contactName)
+    .limit(limit);
+  
+  const clients = clientResults
+    .map(r => r.name)
+    .filter((name): name is string => name !== null);
+  
+  // Get participant suggestions from meetings
+  const meetingResults = await db
+    .select({ participants: meetings.participants })
+    .from(meetings)
+    .where(sql`${meetings.participants} LIKE ${searchPattern}`)
+    .limit(50);
+  
+  const participantSet = new Set<string>();
+  meetingResults.forEach(m => {
+    if (m.participants) {
+      const participants = m.participants.split(',').map(p => p.trim());
+      participants.forEach(p => {
+        if (p.toLowerCase().includes(query.toLowerCase())) {
+          participantSet.add(p);
+        }
+      });
+    }
+  });
+  
+  const participants = Array.from(participantSet).slice(0, limit);
+  
+  // Get topic suggestions
+  const topicResults = await db
+    .select({ topics: meetings.topics })
+    .from(meetings)
+    .where(sql`${meetings.topics} LIKE ${searchPattern}`)
+    .limit(50);
+  
+  const topicSet = new Set<string>();
+  topicResults.forEach(m => {
+    if (m.topics) {
+      const topics = m.topics.split(',').map(t => t.trim());
+      topics.forEach(t => {
+        if (t.toLowerCase().includes(query.toLowerCase())) {
+          topicSet.add(t);
+        }
+      });
+    }
+  });
+  
+  const topics = Array.from(topicSet).slice(0, limit);
+  
+  return { clients, participants, topics };
+}

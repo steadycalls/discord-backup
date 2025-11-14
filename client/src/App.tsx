@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Meetings from "./pages/Meetings";
 import DiscordClientMatch from "./pages/DiscordClientMatch";
+import Analytics from "./pages/Analytics";
 import Messages from "./pages/Messages";
 import Webhooks from "./pages/Webhooks";
 import WebhookLogs from "./pages/WebhookLogs";
@@ -26,6 +27,7 @@ function Router() {
       <Route path={"/settings"} component={Settings} />
       <Route path={"/client-database"} component={ClientDatabase} />
       <Route path={"/discord-client-match"} component={DiscordClientMatch} />
+      <Route path={"/analytics"} component={Analytics} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
