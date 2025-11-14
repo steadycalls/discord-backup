@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
-import { Database, MessageSquare, Webhook } from "lucide-react";
+import { Database, MessageSquare, Webhook, Sparkles } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
@@ -54,7 +54,15 @@ export default function Home() {
             Archive Discord messages to PostgreSQL and trigger webhooks on database events. Search, analyze, and
             integrate your Discord data with external systems.
           </p>
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
+            {isAuthenticated && (
+              <Link href="/chat">
+                <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white">
+                  <Sparkles className="w-5 h-5 mr-2" />
+                  AI Chat
+                </Button>
+              </Link>
+            )}
             <Link href="/messages">
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">
                 <MessageSquare className="w-5 h-5 mr-2" />
@@ -75,7 +83,17 @@ export default function Home() {
 
       {/* Features */}
       <section className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-4 gap-6">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <Sparkles className="w-12 h-12 text-purple-400 mb-4" />
+              <CardTitle className="text-white">AI Chat Search</CardTitle>
+              <CardDescription className="text-slate-400">
+                Ask questions about your Discord archive using AI-powered search and conversation
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
               <Database className="w-12 h-12 text-blue-400 mb-4" />

@@ -112,3 +112,51 @@ export type WebhookLog = typeof webhookLogs.$inferSelect;
 
 export type InsertWebhook = typeof webhooks.$inferInsert;
 export type InsertWebhookLog = typeof webhookLogs.$inferInsert;
+// AI Chat Tables
+export const chatConversations = mysqlTable("chat_conversations", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const chatMessages = mysqlTable("chat_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  conversationId: int("conversationId").notNull().references(() => chatConversations.id, { onDelete: "cascade" }),
+  role: mysqlEnum("role", ["user", "assistant", "system"]).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// User Settings Table
+export const userSettings = mysqlTable("user_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  openaiApiKey: text("openaiApiKey"), // Encrypted API key
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+// Read.ai Meetings Table
+export const meetings = mysqlTable("meetings", {
+  id: int("id").autoincrement().primaryKey(),
+  title: text("title").notNull(),
+  meetingLink: text("meetingLink"),
+  summary: text("summary"),
+  participants: text("participants"), // JSON array of participant names
+  startTime: timestamp("startTime"),
+  endTime: timestamp("endTime"),
+  rawPayload: text("rawPayload"), // Full webhook payload for reference
+  receivedAt: timestamp("receivedAt").defaultNow().notNull(),
+});
+
+export type ChatConversation = typeof chatConversations.$inferSelect;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type UserSettings = typeof userSettings.$inferSelect;
+export type Meeting = typeof meetings.$inferSelect;
+
+export type InsertChatConversation = typeof chatConversations.$inferInsert;
+export type InsertChatMessage = typeof chatMessages.$inferInsert;
+export type InsertUserSettings = typeof userSettings.$inferInsert;
+export type InsertMeeting = typeof meetings.$inferInsert;

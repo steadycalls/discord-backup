@@ -8,6 +8,8 @@ import Home from "./pages/Home";
 import Messages from "./pages/Messages";
 import Webhooks from "./pages/Webhooks";
 import WebhookLogs from "./pages/WebhookLogs";
+import Chat from "./pages/Chat";
+import Settings from "./pages/Settings";
 
 function Router() {
   return (
@@ -16,6 +18,8 @@ function Router() {
       <Route path={"/messages"} component={Messages} />
       <Route path={"/webhooks"} component={Webhooks} />
       <Route path={"/webhook-logs"} component={WebhookLogs} />
+      <Route path={"/chat"} component={Chat} />
+      <Route path={"/settings"} component={Settings} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

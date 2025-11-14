@@ -148,6 +148,127 @@ export const appRouter = router({
       }
     }),
   }),
+
+  // AI Chat Routes
+  chat: router({
+    conversations: protectedProcedure.query(async ({ ctx }) => {
+      const { getChatConversations } = await import("./db");
+      return getChatConversations(ctx.user.id);
+    }),
+    conversation: protectedProcedure.input(z.object({ id: z.number() })).query(async ({ input, ctx }) => {
+      const { getChatConversationById } = await import("./db");
+      return getChatConversationById(input.id, ctx.user.id);
+    }),
+    messages: protectedProcedure.input(z.object({ conversationId: z.number() })).query(async ({ input }) => {
+      const { getChatMessages } = await import("./db");
+      return getChatMessages(input.conversationId);
+    }),
+    createConversation: protectedProcedure
+      .input(z.object({ title: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        const { createChatConversation } = await import("./db");
+        const id = await createChatConversation(ctx.user.id, input.title);
+        return { id };
+      }),
+    sendMessage: protectedProcedure
+      .input(z.object({ conversationId: z.number(), content: z.string().min(1) }))
+      .mutation(async ({ input, ctx }) => {
+        const { createChatMessage, getChatConversationById, getUserSettings, getDiscordMessages } = await import("./db");
+        
+        // Verify conversation belongs to user
+        const conversation = await getChatConversationById(input.conversationId, ctx.user.id);
+        if (!conversation) throw new Error("Conversation not found");
+        
+        // Save user message
+        await createChatMessage(input.conversationId, "user", input.content);
+        
+        // Get user's OpenAI API key
+        const settings = await getUserSettings(ctx.user.id);
+        if (!settings?.openaiApiKey) {
+          throw new Error("OpenAI API key not configured. Please add it in Settings.");
+        }
+        
+        // Search Discord messages for context
+        const searchResults = await getDiscordMessages({
+          searchText: input.content,
+          limit: 5,
+        });
+        
+        // Build context from search results
+        let context = "";
+        if (searchResults.messages.length > 0) {
+          context = "\n\nRelevant Discord messages:\n";
+          searchResults.messages.forEach((msg) => {
+            context += `[${msg.channel?.name}] ${msg.author?.username}: ${msg.message.content}\n`;
+          });
+        }
+        
+        // Call OpenAI API
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${settings.openaiApiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: "You are a helpful assistant that can search through archived Discord messages. When answering questions, use the provided Discord message context if relevant.",
+              },
+              {
+                role: "user",
+                content: input.content + context,
+              },
+            ],
+          }),
+        });
+        
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`OpenAI API error: ${error}`);
+        }
+        
+        const data = await response.json();
+        const assistantMessage = data.choices[0]?.message?.content || "No response";
+        
+        // Save assistant message
+        await createChatMessage(input.conversationId, "assistant", assistantMessage);
+        
+        return { content: assistantMessage };
+      }),
+    deleteConversation: protectedProcedure.input(z.object({ id: z.number() })).mutation(async ({ input, ctx }) => {
+      const { deleteChatConversation } = await import("./db");
+      await deleteChatConversation(input.id, ctx.user.id);
+      return { success: true };
+    }),
+  }),
+
+  // Settings Routes
+  settings: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const { getUserSettings } = await import("./db");
+      return getUserSettings(ctx.user.id);
+    }),
+    update: protectedProcedure
+      .input(z.object({ openaiApiKey: z.string().optional() }))
+      .mutation(async ({ input, ctx }) => {
+        const { upsertUserSettings } = await import("./db");
+        await upsertUserSettings(ctx.user.id, input);
+        return { success: true };
+      }),
+  }),
+
+  // Meetings Routes (Read.ai webhook integration)
+  meetings: router({
+    list: publicProcedure
+      .input(z.object({ limit: z.number().optional(), offset: z.number().optional() }).optional())
+      .query(async ({ input }) => {
+        const { getMeetings } = await import("./db");
+        return getMeetings(input?.limit, input?.offset);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

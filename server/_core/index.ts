@@ -35,6 +35,32 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  
+  // Read.ai webhook endpoint
+  app.post("/api/webhooks/readai", async (req, res) => {
+    try {
+      const payload = req.body;
+      const { createMeeting } = await import("../db");
+      
+      // Extract meeting data from Read.ai webhook payload
+      const meetingData = {
+        title: payload.title || payload.meeting_title || "Untitled Meeting",
+        meetingLink: payload.link || payload.meeting_link || payload.url,
+        summary: payload.summary || payload.meeting_summary,
+        participants: payload.participants ? JSON.stringify(payload.participants) : undefined,
+        startTime: payload.start_time ? new Date(payload.start_time) : undefined,
+        endTime: payload.end_time ? new Date(payload.end_time) : undefined,
+        rawPayload: JSON.stringify(payload),
+      };
+      
+      await createMeeting(meetingData);
+      
+      res.status(200).json({ success: true, message: "Meeting data received" });
+    } catch (error: any) {
+      console.error("Read.ai webhook error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
   // tRPC API
   app.use(
     "/api/trpc",

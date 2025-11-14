@@ -244,3 +244,115 @@ export async function getActiveWebhooksForEvent(eventType: string, guildId?: str
 
   return query;
 }
+
+// AI Chat Queries
+export async function getChatConversations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { chatConversations } = await import("../drizzle/schema");
+  return db.select().from(chatConversations).where(eq(chatConversations.userId, userId)).orderBy(desc(chatConversations.updatedAt));
+}
+
+export async function getChatConversationById(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const { chatConversations } = await import("../drizzle/schema");
+  const result = await db.select().from(chatConversations).where(
+    and(eq(chatConversations.id, id), eq(chatConversations.userId, userId))
+  ).limit(1);
+  return result[0];
+}
+
+export async function createChatConversation(userId: number, title: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { chatConversations } = await import("../drizzle/schema");
+  const result = await db.insert(chatConversations).values({ userId, title });
+  return Number(result[0].insertId);
+}
+
+export async function updateChatConversation(id: number, userId: number, updates: { title?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { chatConversations } = await import("../drizzle/schema");
+  await db.update(chatConversations).set(updates).where(
+    and(eq(chatConversations.id, id), eq(chatConversations.userId, userId))
+  );
+}
+
+export async function deleteChatConversation(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { chatConversations } = await import("../drizzle/schema");
+  await db.delete(chatConversations).where(
+    and(eq(chatConversations.id, id), eq(chatConversations.userId, userId))
+  );
+}
+
+export async function getChatMessages(conversationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const { chatMessages } = await import("../drizzle/schema");
+  return db.select().from(chatMessages).where(eq(chatMessages.conversationId, conversationId)).orderBy(chatMessages.createdAt);
+}
+
+export async function createChatMessage(conversationId: number, role: "user" | "assistant" | "system", content: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { chatMessages, chatConversations } = await import("../drizzle/schema");
+  
+  // Insert message
+  await db.insert(chatMessages).values({ conversationId, role, content });
+  
+  // Update conversation timestamp
+  await db.update(chatConversations).set({ updatedAt: new Date() }).where(eq(chatConversations.id, conversationId));
+}
+
+// User Settings Queries
+export async function getUserSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const { userSettings } = await import("../drizzle/schema");
+  const result = await db.select().from(userSettings).where(eq(userSettings.userId, userId)).limit(1);
+  return result[0];
+}
+
+export async function upsertUserSettings(userId: number, settings: { openaiApiKey?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { userSettings } = await import("../drizzle/schema");
+  
+  await db.insert(userSettings).values({ userId, ...settings }).onDuplicateKeyUpdate({
+    set: { ...settings, updatedAt: new Date() },
+  });
+}
+
+// Meetings Queries
+export async function getMeetings(limit = 50, offset = 0) {
+  const db = await getDb();
+  if (!db) return { meetings: [], total: 0 };
+  const { meetings } = await import("../drizzle/schema");
+  
+  const result = await db.select().from(meetings).orderBy(desc(meetings.receivedAt)).limit(limit).offset(offset);
+  
+  const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(meetings);
+  
+  return { meetings: result, total: countResult?.count || 0 };
+}
+
+export async function createMeeting(data: {
+  title: string;
+  meetingLink?: string;
+  summary?: string;
+  participants?: string;
+  startTime?: Date;
+  endTime?: Date;
+  rawPayload?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { meetings } = await import("../drizzle/schema");
+  
+  const result = await db.insert(meetings).values(data);
+  return Number(result[0].insertId);
+}

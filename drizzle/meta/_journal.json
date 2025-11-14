@@ -15,6 +15,13 @@
       "when": 1763078854021,
       "tag": "0001_nebulous_beyonder",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1763154164898,
+      "tag": "0002_curly_butterfly",
+      "breakpoints": true
     }
   ]
 }

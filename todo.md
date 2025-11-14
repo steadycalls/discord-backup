@@ -71,3 +71,28 @@
 - [x] Create script to move inactive channels (30+ days) to Archive category
 - [x] Document how to run the auto-archive script
 - [x] Add notification feature to send messages when channels are archived
+
+## AI Chat Interface
+- [x] Create chat conversations table in database
+- [x] Create chat messages table in database
+- [x] Create backend procedures for chat operations (create, list, get, delete)
+- [x] Create backend procedure for AI message streaming
+- [x] Build chat page with sidebar layout (history on left, conversation on right)
+- [x] Implement new chat creation
+- [x] Implement chat history display
+- [x] Implement message streaming UI
+- [x] Add search functionality for archived Discord messages via AI
+
+## Settings Page
+- [x] Create user settings table in database
+- [x] Create backend procedures for settings CRUD
+- [x] Build settings page UI
+- [x] Add OpenAI API key input field
+- [x] Implement secure API key storage and retrieval
+
+## Read.ai Webhook Integration
+- [x] Create meetings table in database
+- [x] Create inbound webhook endpoint for Read.ai
+- [x] Parse Read.ai webhook payload (link, summary, title, participants)
+- [x] Store meeting data in database
+- [ ] Add UI to view received meetings
