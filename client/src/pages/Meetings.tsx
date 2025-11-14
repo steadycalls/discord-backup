@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { APP_TITLE, getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Calendar, ExternalLink, FileText, Loader2, Upload, Search, Filter } from "lucide-react";
+import { ArrowLeft, Calendar, ExternalLink, FileText, Loader2, Upload, Search, Filter, FileSpreadsheet } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -143,6 +143,33 @@ export default function Meetings() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <FileSpreadsheet className="w-5 h-5 text-blue-400 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-sm mb-1">Download Latest Meeting Data</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Download the latest Read.ai meeting data from Google Sheets, then upload it here to update the database.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="border-blue-500/30 hover:bg-blue-500/10"
+                    >
+                      <a
+                        href="https://docs.google.com/spreadsheets/d/1MqhYCnJRz0E696Srkw4JHqj3xb_AKpaVxayVKXIDlfY/edit?gid=0#gid=0"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Open Google Sheet
+                        <ExternalLink className="w-3 h-3 ml-2" />
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </div>
               <div className="flex items-center gap-4">
                 <input
                   ref={fileInputRef}

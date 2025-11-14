@@ -177,3 +177,9 @@
 - [x] Fix Select component empty string value error in Meetings page
 - [x] Test Meetings page loads correctly
 - [x] Push fix to GitHub
+
+## Google Sheet Integration
+- [x] Add button on Meetings page to link to Google Sheet
+- [x] Add instructions to download and upload new version
+- [ ] Test button functionality
+- [ ] Push changes to GitHub
