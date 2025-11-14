@@ -175,5 +175,5 @@
 
 ## Bug Fixes
 - [x] Fix Select component empty string value error in Meetings page
-- [ ] Test Meetings page loads correctly
-- [ ] Push fix to GitHub
+- [x] Test Meetings page loads correctly
+- [x] Push fix to GitHub
