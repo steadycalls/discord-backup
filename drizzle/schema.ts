@@ -25,4 +25,90 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+// Discord Archive Tables
+export const discordGuilds = mysqlTable("discord_guilds", {
+  id: varchar("id", { length: 64 }).primaryKey(), // Discord guild ID
+  name: text("name").notNull(),
+  iconUrl: text("iconUrl"),
+  createdAt: timestamp("createdAt").notNull(),
+  insertedAt: timestamp("insertedAt").defaultNow().notNull(),
+});
+
+export const discordChannels = mysqlTable("discord_channels", {
+  id: varchar("id", { length: 64 }).primaryKey(), // Discord channel ID
+  guildId: varchar("guildId", { length: 64 }).notNull().references(() => discordGuilds.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  type: varchar("type", { length: 32 }).notNull(), // text, voice, forum, etc.
+  createdAt: timestamp("createdAt").notNull(),
+  insertedAt: timestamp("insertedAt").defaultNow().notNull(),
+});
+
+export const discordUsers = mysqlTable("discord_users", {
+  id: varchar("id", { length: 64 }).primaryKey(), // Discord user ID
+  username: text("username").notNull(),
+  discriminator: varchar("discriminator", { length: 16 }),
+  globalName: text("globalName"),
+  bot: int("bot").default(0).notNull(), // 0 = false, 1 = true
+  createdAt: timestamp("createdAt").notNull(),
+  insertedAt: timestamp("insertedAt").defaultNow().notNull(),
+});
+
+export const discordMessages = mysqlTable("discord_messages", {
+  id: varchar("id", { length: 64 }).primaryKey(), // Discord message ID
+  channelId: varchar("channelId", { length: 64 }).notNull().references(() => discordChannels.id, { onDelete: "cascade" }),
+  guildId: varchar("guildId", { length: 64 }).notNull().references(() => discordGuilds.id, { onDelete: "cascade" }),
+  authorId: varchar("authorId", { length: 64 }).notNull().references(() => discordUsers.id, { onDelete: "cascade" }),
+  content: text("content"),
+  createdAt: timestamp("createdAt").notNull(), // Original Discord timestamp
+  editedAt: timestamp("editedAt"),
+  isPinned: int("isPinned").default(0).notNull(),
+  isTts: int("isTts").default(0).notNull(),
+  rawJson: text("rawJson"), // Full message payload for future use
+  insertedAt: timestamp("insertedAt").defaultNow().notNull(), // When we wrote it to DB
+});
+
+export const discordAttachments = mysqlTable("discord_attachments", {
+  id: varchar("id", { length: 64 }).primaryKey(), // Discord attachment ID
+  messageId: varchar("messageId", { length: 64 }).notNull().references(() => discordMessages.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  filename: text("filename"),
+  contentType: varchar("contentType", { length: 128 }),
+  sizeBytes: int("sizeBytes"),
+  insertedAt: timestamp("insertedAt").defaultNow().notNull(),
+});
+
+// Webhook Management Tables
+export const webhooks = mysqlTable("webhooks", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  url: text("url").notNull(),
+  eventType: mysqlEnum("eventType", ["message_insert", "message_update", "message_delete", "all"]).notNull(),
+  isActive: int("isActive").default(1).notNull(), // 0 = inactive, 1 = active
+  guildFilter: varchar("guildFilter", { length: 64 }), // Optional: filter by guild ID
+  channelFilter: varchar("channelFilter", { length: 64 }), // Optional: filter by channel ID
+  createdBy: int("createdBy").notNull().references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const webhookLogs = mysqlTable("webhook_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  webhookId: int("webhookId").notNull().references(() => webhooks.id, { onDelete: "cascade" }),
+  eventType: varchar("eventType", { length: 32 }).notNull(),
+  messageId: varchar("messageId", { length: 64 }),
+  statusCode: int("statusCode"),
+  success: int("success").notNull(), // 0 = failed, 1 = success
+  errorMessage: text("errorMessage"),
+  deliveredAt: timestamp("deliveredAt").defaultNow().notNull(),
+});
+
+export type DiscordGuild = typeof discordGuilds.$inferSelect;
+export type DiscordChannel = typeof discordChannels.$inferSelect;
+export type DiscordUser = typeof discordUsers.$inferSelect;
+export type DiscordMessage = typeof discordMessages.$inferSelect;
+export type DiscordAttachment = typeof discordAttachments.$inferSelect;
+export type Webhook = typeof webhooks.$inferSelect;
+export type WebhookLog = typeof webhookLogs.$inferSelect;
+
+export type InsertWebhook = typeof webhooks.$inferInsert;
+export type InsertWebhookLog = typeof webhookLogs.$inferInsert;
