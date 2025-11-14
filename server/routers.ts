@@ -175,6 +175,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const { 
           createChatMessage, 
+          getChatMessages,
           getChatConversationById, 
           getUserSettings, 
           getDiscordMessages,
@@ -272,6 +273,32 @@ When answering questions:
 - Mention when information might be incomplete or outdated
 - Format responses with clear sections and bullet points when appropriate`;
         
+        // Get conversation history for context
+        const history = await getChatMessages(input.conversationId);
+        
+        // Build messages array with conversation history
+        const messages: Array<{ role: string; content: string }> = [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+        ];
+        
+        // Add conversation history (last 10 messages for context)
+        const recentHistory = history.slice(-10);
+        recentHistory.forEach((msg: { role: string; content: string }) => {
+          messages.push({
+            role: msg.role,
+            content: msg.content,
+          });
+        });
+        
+        // Add current user message with context
+        messages.push({
+          role: "user",
+          content: input.content + context,
+        });
+        
         // Call OpenAI API
         const response = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -281,16 +308,7 @@ When answering questions:
           },
           body: JSON.stringify({
             model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content: systemPrompt,
-              },
-              {
-                role: "user",
-                content: input.content + context,
-              },
-            ],
+            messages,
           }),
         });
         
@@ -336,6 +354,87 @@ When answering questions:
       .query(async ({ input }) => {
         const { getMeetings } = await import("./db");
         return getMeetings(input?.limit, input?.offset);
+      }),
+    filter: publicProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        channelId: z.string().optional(),
+        searchText: z.string().optional(),
+        limit: z.number().optional(),
+        offset: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        const { getMeetingsFiltered } = await import("./db");
+        return getMeetingsFiltered({
+          startDate: input.startDate ? new Date(input.startDate) : undefined,
+          endDate: input.endDate ? new Date(input.endDate) : undefined,
+          channelId: input.channelId,
+          searchText: input.searchText,
+          limit: input.limit,
+          offset: input.offset,
+        });
+      }),
+    uploadCsv: protectedProcedure
+      .input(z.object({ csvContent: z.string() }))
+      .mutation(async ({ input }) => {
+        const { bulkInsertMeetings } = await import("./db");
+        
+        // Parse CSV
+        const lines = input.csvContent.split('\n');
+        const headers = lines[0].split(',');
+        
+        // Find column indices
+        const dateIndex = headers.findIndex(h => h.trim().toLowerCase() === 'date');
+        const titleIndex = headers.findIndex(h => h.trim().toLowerCase() === 'title');
+        const summaryIndex = headers.findIndex(h => h.trim().toLowerCase() === 'summary');
+        const linkIndex = headers.findIndex(h => h.trim().toLowerCase() === 'link');
+        const peopleIndex = headers.findIndex(h => h.trim().toLowerCase() === 'people');
+        const sessionIdIndex = headers.findIndex(h => h.trim().toLowerCase() === 'session id');
+        const topicsIndex = headers.findIndex(h => h.trim().toLowerCase() === 'topics');
+        const questionsIndex = headers.findIndex(h => h.trim().toLowerCase() === 'key questions');
+        const chaptersIndex = headers.findIndex(h => h.trim().toLowerCase() === 'chapters');
+        
+        if (titleIndex === -1) {
+          throw new Error("Required 'Title' column not found in CSV");
+        }
+        
+        // Parse data rows
+        const meetings = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const columns = line.split(',');
+          const title = columns[titleIndex]?.trim();
+          
+          if (!title || title === 'Meeting Title') continue; // Skip header or empty
+          
+          let startTime: Date | undefined;
+          if (dateIndex >= 0 && columns[dateIndex]) {
+            try {
+              startTime = new Date(columns[dateIndex].trim());
+            } catch (e) {
+              // Invalid date, skip
+            }
+          }
+          
+          meetings.push({
+            title,
+            meetingLink: linkIndex >= 0 ? columns[linkIndex]?.trim() : undefined,
+            summary: summaryIndex >= 0 ? columns[summaryIndex]?.trim() : undefined,
+            participants: peopleIndex >= 0 ? columns[peopleIndex]?.trim() : undefined,
+            sessionId: sessionIdIndex >= 0 ? columns[sessionIdIndex]?.trim() : undefined,
+            topics: topicsIndex >= 0 ? columns[topicsIndex]?.trim() : undefined,
+            keyQuestions: questionsIndex >= 0 ? columns[questionsIndex]?.trim() : undefined,
+            chapters: chaptersIndex >= 0 ? columns[chaptersIndex]?.trim() : undefined,
+            startTime,
+          });
+        }
+        
+        await bulkInsertMeetings(meetings);
+        
+        return { success: true, count: meetings.length };
       }),
   }),
 
@@ -398,6 +497,21 @@ When answering questions:
         await bulkInsertClientMappings(mappings);
         
         return { success: true, count: mappings.length };
+      }),
+  }),
+
+  // Discord-to-Client Matching Routes
+  discordClientMatch: router({
+    addEmailMapping: protectedProcedure
+      .input(z.object({
+        channelId: z.string(),
+        email: z.string().email(),
+        contactName: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { addClientMappingEmail } = await import("./db");
+        await addClientMappingEmail(input.channelId, input.email, input.contactName);
+        return { success: true };
       }),
   }),
 });

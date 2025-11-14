@@ -145,10 +145,15 @@ export const meetings = mysqlTable("meetings", {
   meetingLink: text("meetingLink"),
   summary: text("summary"),
   participants: text("participants"), // JSON array of participant names
+  sessionId: varchar("sessionId", { length: 64 }),
+  topics: text("topics"), // Comma-separated or JSON
+  keyQuestions: text("keyQuestions"), // Comma-separated or JSON
+  chapters: text("chapters"), // JSON
   startTime: timestamp("startTime"),
   endTime: timestamp("endTime"),
   rawPayload: text("rawPayload"), // Full webhook payload for reference
   receivedAt: timestamp("receivedAt").defaultNow().notNull(),
+  matchedChannelId: varchar("matchedChannelId", { length: 64 }), // Discord channel ID if matched
 });
 
 export type ChatConversation = typeof chatConversations.$inferSelect;

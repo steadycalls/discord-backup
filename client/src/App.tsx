@@ -5,6 +5,8 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Meetings from "./pages/Meetings";
+import DiscordClientMatch from "./pages/DiscordClientMatch";
 import Messages from "./pages/Messages";
 import Webhooks from "./pages/Webhooks";
 import WebhookLogs from "./pages/WebhookLogs";
@@ -16,12 +18,14 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/meetings"} component={Meetings} />
       <Route path={"/messages"} component={Messages} />
       <Route path={"/webhooks"} component={Webhooks} />
       <Route path={"/webhook-logs"} component={WebhookLogs} />
       <Route path={"/chat"} component={Chat} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/client-database"} component={ClientDatabase} />
+      <Route path={"/discord-client-match"} component={DiscordClientMatch} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

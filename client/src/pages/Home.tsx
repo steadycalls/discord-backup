@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
-import { Database, MessageSquare, Webhook, Sparkles } from "lucide-react";
+import { Database, MessageSquare, Webhook, Sparkles, Calendar } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
@@ -67,6 +67,12 @@ export default function Home() {
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white">
                 <MessageSquare className="w-5 h-5 mr-2" />
                 Browse Messages
+              </Button>
+            </Link>
+            <Link href="/meetings">
+              <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-800">
+                <Calendar className="w-5 h-5 mr-2" />
+                Meetings Dashboard
               </Button>
             </Link>
             {isAuthenticated && (

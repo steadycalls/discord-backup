@@ -1,4 +1,4 @@
-import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, like, or, sql, SQL } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -414,4 +414,99 @@ export async function updateMeetingWithChannelId(meetingId: number, channelId: s
   await db.update(meetings).set({ 
     rawPayload: sql`JSON_SET(${meetings.rawPayload}, '$.matched_channel_id', ${channelId})`
   }).where(eq(meetings.id, meetingId));
+}
+
+// Meetings CSV Import
+export async function bulkInsertMeetings(meetings: Array<{
+  title: string;
+  meetingLink?: string;
+  summary?: string;
+  participants?: string;
+  sessionId?: string;
+  topics?: string;
+  keyQuestions?: string;
+  chapters?: string;
+  startTime?: Date;
+  matchedChannelId?: string;
+}>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { meetings: meetingsTable } = await import("../drizzle/schema");
+  
+  if (meetings.length === 0) return;
+  
+  await db.insert(meetingsTable).values(meetings);
+}
+
+export async function getMeetingsFiltered(filters: {
+  startDate?: Date;
+  endDate?: Date;
+  channelId?: string;
+  searchText?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { meetings: [], total: 0 };
+  const { meetings } = await import("../drizzle/schema");
+  
+  const conditions: SQL[] = [];
+  
+  if (filters.startDate) {
+    conditions.push(sql`${meetings.startTime} >= ${filters.startDate}`);
+  }
+  
+  if (filters.endDate) {
+    conditions.push(sql`${meetings.startTime} <= ${filters.endDate}`);
+  }
+  
+  if (filters.channelId) {
+    conditions.push(eq(meetings.matchedChannelId, filters.channelId));
+  }
+  
+  if (filters.searchText) {
+    conditions.push(
+      sql`(${meetings.title} LIKE ${`%${filters.searchText}%`} OR ${meetings.summary} LIKE ${`%${filters.searchText}%`})`
+    );
+  }
+  
+  let query = db.select().from(meetings);
+  if (conditions.length > 0) {
+    query = query.where(sql.join(conditions, sql` AND `)) as typeof query;
+  }
+  
+  const result = await query
+    .orderBy(desc(meetings.receivedAt))
+    .limit(filters.limit || 50)
+    .offset(filters.offset || 0);
+  
+  // Get total count
+  let countQuery = db.select({ count: sql<number>`count(*)` }).from(meetings);
+  if (conditions.length > 0) {
+    countQuery = countQuery.where(sql.join(conditions, sql` AND `)) as typeof countQuery;
+  }
+  const [countResult] = await countQuery;
+  
+  return { meetings: result, total: countResult?.count || 0 };
+}
+
+export async function addClientMappingEmail(channelId: string, email: string, contactName?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { clientMappings } = await import("../drizzle/schema");
+  
+  // Check if mapping already exists
+  const existing = await db.select().from(clientMappings)
+    .where(sql`${clientMappings.contactEmail} = ${email} AND ${clientMappings.discordChannelId} = ${channelId}`)
+    .limit(1);
+  
+  if (existing.length > 0) {
+    throw new Error("This email is already mapped to this channel");
+  }
+  
+  await db.insert(clientMappings).values({
+    contactEmail: email,
+    discordChannelId: channelId,
+    contactName,
+  });
 }

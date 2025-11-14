@@ -115,3 +115,31 @@
 - [x] Enhance chat system prompt with database context
 - [x] Add channel name resolution for queries like "bmw-guy"
 - [ ] Test chat with multi-database queries
+
+## Meetings Dashboard
+- [x] Analyze Read.ai CSV structure
+- [x] Create CSV import endpoint for meetings
+- [x] Build CSV parser for Read.ai meetings data
+- [x] Create backend procedures for meeting filtering (by date, client, channel)
+- [x] Build meetings dashboard UI
+- [x] Add date range filter
+- [x] Add client/channel filter
+- [x] Add quick links to Discord channels
+- [ ] Import initial meetings from CSV
+
+## Conversation Memory
+- [x] Update chat backend to include conversation history in context
+- [x] Modify AI system prompt to use conversation history
+- [ ] Test multi-turn conversations with context retention
+
+## Discord-to-Client Email Matching
+- [x] Create UI to view Discord channels
+- [x] Add interface to associate additional emails with channels
+- [x] Create backend endpoint to add email mappings
+- [ ] Test email matching with multiple emails per channel
+
+## Final Steps
+- [ ] Push all changes to GitHub repository
+
+## Backfill Script Update
+- [x] Update backfill script to fetch 120 days instead of 30 days
