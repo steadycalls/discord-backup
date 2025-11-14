@@ -183,3 +183,8 @@
 - [x] Add instructions to download and upload new version
 - [x] Test button functionality
 - [x] Push changes to GitHub
+
+## Title Update
+- [x] Replace all hardcoded "Discord Archive Webhook Manager" with APP_TITLE constant
+- [ ] Test title updates throughout the application
+- [ ] Push changes to GitHub

@@ -48,7 +48,7 @@ export default function Home() {
       <section className="container mx-auto px-4 py-16 text-center">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-5xl font-bold text-white mb-6">
-            Discord Message Archive & Webhook Manager
+            {APP_TITLE}
           </h2>
           <p className="text-xl text-slate-300 mb-8">
             Archive Discord messages to PostgreSQL and trigger webhooks on database events. Search, analyze, and
@@ -141,7 +141,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-700 bg-slate-900/50 backdrop-blur-sm mt-16">
         <div className="container mx-auto px-4 py-6 text-center text-slate-400">
-          <p>Discord Archive Webhook Manager - Built with Discord.py, PostgreSQL, and React</p>
+          <p>{APP_TITLE} - Built with Discord.py, PostgreSQL, and React</p>
         </div>
       </footer>
     </div>
