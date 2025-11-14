@@ -160,3 +160,20 @@ export type InsertChatConversation = typeof chatConversations.$inferInsert;
 export type InsertChatMessage = typeof chatMessages.$inferInsert;
 export type InsertUserSettings = typeof userSettings.$inferInsert;
 export type InsertMeeting = typeof meetings.$inferInsert;
+
+// Client Mappings Table (for Read.ai → Discord channel routing)
+export const clientMappings = mysqlTable("client_mappings", {
+  id: int("id").autoincrement().primaryKey(),
+  contactName: text("contactName"),
+  contactEmail: varchar("contactEmail", { length: 320 }).notNull(),
+  discordChannelName: text("discordChannelName"),
+  discordChannelId: varchar("discordChannelId", { length: 64 }),
+  accountManager: text("accountManager"),
+  projectOwner: text("projectOwner"),
+  clientName: text("clientName"),
+  uploadedAt: timestamp("uploadedAt").defaultNow().notNull(),
+  uploadedBy: int("uploadedBy").references(() => users.id),
+});
+
+export type ClientMapping = typeof clientMappings.$inferSelect;
+export type InsertClientMapping = typeof clientMappings.$inferInsert;

@@ -173,7 +173,15 @@ export const appRouter = router({
     sendMessage: protectedProcedure
       .input(z.object({ conversationId: z.number(), content: z.string().min(1) }))
       .mutation(async ({ input, ctx }) => {
-        const { createChatMessage, getChatConversationById, getUserSettings, getDiscordMessages } = await import("./db");
+        const { 
+          createChatMessage, 
+          getChatConversationById, 
+          getUserSettings, 
+          getDiscordMessages,
+          getDiscordChannels,
+          getMeetings,
+          getClientMappings
+        } = await import("./db");
         
         // Verify conversation belongs to user
         const conversation = await getChatConversationById(input.conversationId, ctx.user.id);
@@ -188,20 +196,81 @@ export const appRouter = router({
           throw new Error("OpenAI API key not configured. Please add it in Settings.");
         }
         
-        // Search Discord messages for context
+        // Detect if user is asking about a specific channel
+        const channelMatch = input.content.match(/channel[\s#]+([-\w]+)/i) || 
+                            input.content.match(/from\s+([-\w]+)\s+channel/i) ||
+                            input.content.match(/#([-\w]+)/);
+        
+        let channelFilter: string | undefined;
+        if (channelMatch) {
+          const channelName = channelMatch[1];
+          const channels = await getDiscordChannels();
+          const matchedChannel = channels.find(ch => 
+            ch.name.toLowerCase().includes(channelName.toLowerCase()) ||
+            channelName.toLowerCase().includes(ch.name.toLowerCase())
+          );
+          if (matchedChannel) {
+            channelFilter = matchedChannel.id;
+          }
+        }
+        
+        // Build comprehensive context from all databases
+        let context = "\n\n=== AVAILABLE DATA ===";
+        
+        // 1. Search Discord messages
         const searchResults = await getDiscordMessages({
           searchText: input.content,
-          limit: 5,
+          channelId: channelFilter,
+          limit: 10,
         });
         
-        // Build context from search results
-        let context = "";
         if (searchResults.messages.length > 0) {
-          context = "\n\nRelevant Discord messages:\n";
+          context += "\n\n--- Recent Discord Messages ---\n";
           searchResults.messages.forEach((msg) => {
-            context += `[${msg.channel?.name}] ${msg.author?.username}: ${msg.message.content}\n`;
+            const timestamp = new Date(msg.message.createdAt).toLocaleDateString();
+            context += `[${timestamp}] [#${msg.channel?.name}] ${msg.author?.username}: ${msg.message.content}\n`;
           });
         }
+        
+        // 2. Get recent meetings from Read.ai
+        const meetingsData = await getMeetings(5, 0);
+        if (meetingsData.meetings.length > 0) {
+          context += "\n\n--- Recent Read.ai Meetings ---\n";
+          meetingsData.meetings.forEach((meeting) => {
+            const timestamp = new Date(meeting.receivedAt).toLocaleDateString();
+            context += `[${timestamp}] ${meeting.title}\n`;
+            if (meeting.summary) {
+              context += `Summary: ${meeting.summary.substring(0, 200)}...\n`;
+            }
+            if (meeting.meetingLink) {
+              context += `Link: ${meeting.meetingLink}\n`;
+            }
+          });
+        }
+        
+        // 3. Get client mappings if relevant
+        const clientData = await getClientMappings(50, 0);
+        if (clientData.mappings.length > 0 && (input.content.toLowerCase().includes('client') || input.content.toLowerCase().includes('contact'))) {
+          context += "\n\n--- Client Database (sample) ---\n";
+          clientData.mappings.slice(0, 5).forEach((mapping) => {
+            context += `${mapping.contactName || 'Unknown'} (${mapping.contactEmail}) -> #${mapping.discordChannelName}\n`;
+          });
+        }
+        
+        // Enhanced system prompt
+        const systemPrompt = `You are an AI assistant with access to a Discord archive system that includes:
+
+1. **Discord Messages Database**: Archived messages from all channels with timestamps, authors, and content
+2. **Read.ai Meetings Database**: Meeting summaries, links, participants, and transcripts
+3. **Client Database**: Client contact information mapped to Discord channels
+
+When answering questions:
+- Use the provided data context to give accurate, specific answers
+- Reference specific channels, dates, and people when available
+- Summarize information concisely but comprehensively
+- If asking about a specific channel, focus on that channel's data
+- Mention when information might be incomplete or outdated
+- Format responses with clear sections and bullet points when appropriate`;
         
         // Call OpenAI API
         const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -215,7 +284,7 @@ export const appRouter = router({
             messages: [
               {
                 role: "system",
-                content: "You are a helpful assistant that can search through archived Discord messages. When answering questions, use the provided Discord message context if relevant.",
+                content: systemPrompt,
               },
               {
                 role: "user",
@@ -267,6 +336,68 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const { getMeetings } = await import("./db");
         return getMeetings(input?.limit, input?.offset);
+      }),
+  }),
+
+  // Client Mappings Routes (for Read.ai → Discord routing)
+  clientMappings: router({
+    list: protectedProcedure
+      .input(z.object({ limit: z.number().optional(), offset: z.number().optional() }).optional())
+      .query(async ({ input }) => {
+        const { getClientMappings } = await import("./db");
+        return getClientMappings(input?.limit, input?.offset);
+      }),
+    upload: protectedProcedure
+      .input(z.object({ csvContent: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const { bulkInsertClientMappings, clearClientMappings } = await import("./db");
+        
+        // Parse CSV
+        const lines = input.csvContent.split('\n');
+        const headers = lines[0].split(',');
+        
+        // Find column indices
+        const emailIndex = headers.findIndex(h => h.includes('Primary Point of Contact Email'));
+        const channelNameIndex = headers.findIndex(h => h.includes('Discord Channel Name'));
+        const channelIdIndex = headers.findIndex(h => h.includes('Discord Channel ID'));
+        const contactNameIndex = headers.findIndex(h => h.includes('Primary Point of Contact Name'));
+        const amIndex = headers.findIndex(h => h.trim() === 'AM');
+        const poIndex = headers.findIndex(h => h.trim() === 'PO');
+        
+        if (emailIndex === -1 || channelIdIndex === -1) {
+          throw new Error("Required columns not found in CSV");
+        }
+        
+        // Parse data rows
+        const mappings = [];
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const columns = line.split(',');
+          const email = columns[emailIndex]?.trim();
+          const channelId = columns[channelIdIndex]?.trim();
+          
+          // Skip if email is missing, empty, or a placeholder
+          if (!email || email === '(repeat)' || email.startsWith('(')) continue;
+          if (!channelId) continue;
+          
+          mappings.push({
+            contactEmail: email,
+            contactName: contactNameIndex >= 0 ? columns[contactNameIndex]?.trim() : undefined,
+            discordChannelName: channelNameIndex >= 0 ? columns[channelNameIndex]?.trim() : undefined,
+            discordChannelId: channelId,
+            accountManager: amIndex >= 0 ? columns[amIndex]?.trim() : undefined,
+            projectOwner: poIndex >= 0 ? columns[poIndex]?.trim() : undefined,
+            uploadedBy: ctx.user.id,
+          });
+        }
+        
+        // Clear existing mappings and insert new ones
+        await clearClientMappings();
+        await bulkInsertClientMappings(mappings);
+        
+        return { success: true, count: mappings.length };
       }),
   }),
 });

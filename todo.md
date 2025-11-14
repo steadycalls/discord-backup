@@ -96,3 +96,22 @@
 - [x] Parse Read.ai webhook payload (link, summary, title, participants)
 - [x] Store meeting data in database
 - [ ] Add UI to view received meetings
+
+## Discord Meeting Notifications
+- [x] Create client_mappings table for email-to-Discord channel mappings
+- [x] Create CSV upload endpoint for client database
+- [x] Build CSV parser to extract email and Discord channel data
+- [x] Create backend procedure to match Read.ai participants with client emails
+- [x] Update Read.ai webhook to trigger Discord notifications
+- [x] Implement Discord bot function to post meeting summaries to channels
+- [x] Build client database management UI with CSV upload
+- [x] Add client mappings viewer page
+- [ ] Test full flow: Read.ai webhook → match participant → post to Discord
+
+## Enhanced AI Chat Database Access
+- [x] Update AI chat to query Discord messages database
+- [x] Update AI chat to query Read.ai meetings database
+- [x] Update AI chat to query client mappings database
+- [x] Enhance chat system prompt with database context
+- [x] Add channel name resolution for queries like "bmw-guy"
+- [ ] Test chat with multi-database queries

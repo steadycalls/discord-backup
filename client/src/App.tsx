@@ -10,6 +10,7 @@ import Webhooks from "./pages/Webhooks";
 import WebhookLogs from "./pages/WebhookLogs";
 import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
+import ClientDatabase from "./pages/ClientDatabase";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path={"/webhook-logs"} component={WebhookLogs} />
       <Route path={"/chat"} component={Chat} />
       <Route path={"/settings"} component={Settings} />
+      <Route path={"/client-database"} component={ClientDatabase} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

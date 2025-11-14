@@ -356,3 +356,62 @@ export async function createMeeting(data: {
   const result = await db.insert(meetings).values(data);
   return Number(result[0].insertId);
 }
+
+// Client Mappings Queries
+export async function getClientMappings(limit = 100, offset = 0) {
+  const db = await getDb();
+  if (!db) return { mappings: [], total: 0 };
+  const { clientMappings } = await import("../drizzle/schema");
+  
+  const result = await db.select().from(clientMappings).orderBy(desc(clientMappings.uploadedAt)).limit(limit).offset(offset);
+  
+  const [countResult] = await db.select({ count: sql<number>`count(*)` }).from(clientMappings);
+  
+  return { mappings: result, total: countResult?.count || 0 };
+}
+
+export async function findClientMappingByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const { clientMappings } = await import("../drizzle/schema");
+  
+  const result = await db.select().from(clientMappings).where(eq(clientMappings.contactEmail, email)).limit(1);
+  return result[0];
+}
+
+export async function bulkInsertClientMappings(mappings: Array<{
+  contactName?: string;
+  contactEmail: string;
+  discordChannelName?: string;
+  discordChannelId?: string;
+  accountManager?: string;
+  projectOwner?: string;
+  clientName?: string;
+  uploadedBy?: number;
+}>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { clientMappings } = await import("../drizzle/schema");
+  
+  if (mappings.length === 0) return;
+  
+  await db.insert(clientMappings).values(mappings);
+}
+
+export async function clearClientMappings() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { clientMappings } = await import("../drizzle/schema");
+  
+  await db.delete(clientMappings);
+}
+
+export async function updateMeetingWithChannelId(meetingId: number, channelId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const { meetings } = await import("../drizzle/schema");
+  
+  await db.update(meetings).set({ 
+    rawPayload: sql`JSON_SET(${meetings.rawPayload}, '$.matched_channel_id', ${channelId})`
+  }).where(eq(meetings.id, meetingId));
+}

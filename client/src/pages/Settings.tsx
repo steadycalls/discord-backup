@@ -192,6 +192,11 @@ export default function Settings() {
                   <span>Manage Webhooks</span>
                 </Link>
               </Button>
+              <Button variant="outline" className="w-full justify-start" asChild>
+                <Link href="/client-database">
+                  <span>Client Database</span>
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -40,7 +40,7 @@ async function startServer() {
   app.post("/api/webhooks/readai", async (req, res) => {
     try {
       const payload = req.body;
-      const { createMeeting } = await import("../db");
+      const { createMeeting, findClientMappingByEmail } = await import("../db");
       
       // Extract meeting data from Read.ai webhook payload
       const meetingData = {
@@ -55,7 +55,61 @@ async function startServer() {
       
       await createMeeting(meetingData);
       
-      res.status(200).json({ success: true, message: "Meeting data received" });
+      // Match participants with client database to find Discord channel
+      let matchedChannelId: string | null = null;
+      let matchedEmail: string | null = null;
+      
+      if (payload.participants && Array.isArray(payload.participants)) {
+        for (const participant of payload.participants) {
+          // Try to extract email from participant object or string
+          let email: string | null = null;
+          
+          if (typeof participant === 'object' && participant.email) {
+            email = participant.email;
+          } else if (typeof participant === 'string' && participant.includes('@')) {
+            email = participant;
+          }
+          
+          if (email) {
+            const mapping = await findClientMappingByEmail(email);
+            if (mapping && mapping.discordChannelId) {
+              matchedChannelId = mapping.discordChannelId;
+              matchedEmail = email;
+              console.log(`[Read.ai] Matched participant ${email} to channel ${mapping.discordChannelName} (${matchedChannelId})`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // If we found a matching channel, post to Discord
+      if (matchedChannelId) {
+        try {
+          // Import Discord.py bot trigger function
+          const { postMeetingToDiscord } = await import("../discord-notifier");
+          await postMeetingToDiscord({
+            channelId: matchedChannelId,
+            title: meetingData.title,
+            link: meetingData.meetingLink,
+            summary: meetingData.summary,
+            participants: payload.participants,
+            matchedEmail,
+          });
+          console.log(`[Read.ai] Posted meeting summary to Discord channel ${matchedChannelId}`);
+        } catch (discordError: any) {
+          console.error("[Read.ai] Failed to post to Discord:", discordError.message);
+          // Don't fail the webhook if Discord posting fails
+        }
+      } else {
+        console.log("[Read.ai] No matching Discord channel found for participants");
+      }
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "Meeting data received",
+        matched: !!matchedChannelId,
+        channelId: matchedChannelId 
+      });
     } catch (error: any) {
       console.error("Read.ai webhook error:", error);
       res.status(500).json({ success: false, error: error.message });
