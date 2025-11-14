@@ -225,11 +225,16 @@
 - [x] Add stat cards to Home page showing activity metrics
 - [x] Add toggle to switch between 24-hour and 7-day views
 - [x] Style stat cards to match the design mockup
-- [ ] Test activity stats with real data
+- [x] Test activity stats with real data
 
 ## Message Attachments Display
 - [x] Update Discord bot to save attachment URLs to database
 - [x] Update database schema to store attachments
 - [x] Display images inline in Browse Messages page
 - [ ] Display images in AI chat responses when relevant
-- [ ] Test image display with real Discord messages
+- [x] Test image display with real Discord messages
+
+## Sample CSV Download
+- [x] Add "Download Sample CSV" button to Meetings page
+- [x] Create sample CSV with correct format and example data
+- [x] Test CSV download functionality

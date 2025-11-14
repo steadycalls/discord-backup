@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { APP_TITLE, getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Calendar, ExternalLink, FileText, Loader2, Upload, Search, Filter, FileSpreadsheet } from "lucide-react";
+import { ArrowLeft, Calendar, ExternalLink, FileText, Loader2, Upload, Search, Filter, FileSpreadsheet, Download } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "wouter";
 import { toast } from "sonner";
@@ -85,6 +85,62 @@ export default function Meetings() {
     setSelectedChannel("");
     setStartDate("");
     setEndDate("");
+  };
+
+  const handleDownloadSample = () => {
+    // Create sample CSV content with correct format
+    const sampleData = [
+      ['Title', 'Meeting Link', 'Summary', 'Participants', 'Session ID', 'Topics', 'Key Questions', 'Chapters', 'Start Time', 'End Time'],
+      [
+        'Weekly Team Sync',
+        'https://meet.google.com/abc-defg-hij',
+        'Discussed project timeline and deliverables. Team aligned on Q1 goals.',
+        'john@logicinbound.com, sarah@logicinbound.com, mike@example.com',
+        'session_12345',
+        'Project Timeline, Q1 Goals, Resource Allocation',
+        'When is the deadline? Who owns the frontend work?',
+        '[{"title":"Introduction","start":0},{"title":"Timeline Discussion","start":300}]',
+        '2025-01-15T10:00:00Z',
+        '2025-01-15T11:00:00Z'
+      ],
+      [
+        'Client Discovery Call - BMW Guy',
+        'https://zoom.us/j/123456789',
+        'Initial discovery call with potential client. Discussed water damage restoration needs.',
+        'kyle@logicinbound.com, bmw-guy@example.com',
+        'session_67890',
+        'Water Damage, Emergency Response, Insurance Claims',
+        'What is your typical response time? Do you work with insurance companies?',
+        '[{"title":"Introductions","start":0},{"title":"Needs Assessment","start":180}]',
+        '2025-01-14T14:30:00Z',
+        '2025-01-14T15:15:00Z'
+      ]
+    ];
+
+    // Convert to CSV string
+    const csvContent = sampleData.map(row => 
+      row.map(cell => {
+        // Escape quotes and wrap in quotes if contains comma, quote, or newline
+        const cellStr = String(cell);
+        if (cellStr.includes(',') || cellStr.includes('"') || cellStr.includes('\n')) {
+          return `"${cellStr.replace(/"/g, '""')}"`;
+        }
+        return cellStr;
+      }).join(',')
+    ).join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'sample_meetings.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast.success('Sample CSV downloaded successfully');
   };
 
   if (authLoading) {
@@ -192,6 +248,13 @@ export default function Meetings() {
                       Select CSV File
                     </>
                   )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadSample}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Sample CSV
                 </Button>
                 {meetingsQuery.data && (
                   <span className="text-sm text-muted-foreground">
