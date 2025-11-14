@@ -134,6 +134,7 @@ export const userSettings = mysqlTable("user_settings", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
   openaiApiKey: text("openaiApiKey"), // Encrypted API key
+  logoUrl: text("logoUrl"), // Custom logo URL
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

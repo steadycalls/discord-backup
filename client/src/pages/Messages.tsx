@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, Image as ImageIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 
@@ -182,6 +182,34 @@ export default function Messages() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-slate-200 whitespace-pre-wrap">{item.message.content || "(No content)"}</p>
+                  {item.attachments && item.attachments.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {item.attachments.map((attachment: any) => (
+                        <div key={attachment.id}>
+                          {attachment.contentType?.startsWith("image/") ? (
+                            <a href={attachment.url} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={attachment.url}
+                                alt={attachment.filename || "Attachment"}
+                                className="max-w-md rounded-lg border border-slate-600 hover:border-blue-500 transition-colors cursor-pointer"
+                                loading="lazy"
+                              />
+                            </a>
+                          ) : (
+                            <a
+                              href={attachment.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-3 py-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors text-slate-200"
+                            >
+                              <ImageIcon className="w-4 h-4" />
+                              <span className="text-sm">{attachment.filename || "Attachment"}</span>
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))

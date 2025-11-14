@@ -109,9 +109,9 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <div className="w-64 border-r border-border flex flex-col bg-muted/30">
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar - Fixed */}
+      <div className="w-64 border-r border-border flex flex-col bg-muted/30 flex-shrink-0">
         {/* Header */}
         <div className="p-4 border-b border-border">
           <Link href="/">
@@ -197,11 +197,11 @@ export default function Chat() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {selectedConversationId ? (
           <>
-            {/* Messages */}
-            <ScrollArea className="flex-1 p-6">
+            {/* Messages - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6">
               {messagesQuery.isLoading ? (
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -237,10 +237,10 @@ export default function Chat() {
                   </div>
                 </div>
               )}
-            </ScrollArea>
+            </div>
 
-            {/* Input Area */}
-            <div className="border-t border-border p-4">
+            {/* Input Area - Fixed at bottom */}
+            <div className="border-t border-border p-4 flex-shrink-0 bg-background">
               <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
                 <div className="flex gap-2">
                   <Input

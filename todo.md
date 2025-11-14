@@ -188,3 +188,48 @@
 - [x] Replace all hardcoded "Discord Archive Webhook Manager" with APP_TITLE constant
 - [x] Test title updates throughout the application
 - [x] Push changes to GitHub
+
+## Logo Upload Feature
+- [x] Create backend endpoint for logo upload to S3
+- [x] Create backend endpoint to get current logo URL
+- [ ] Add logo upload UI to Settings page
+- [ ] Update APP_LOGO constant to use uploaded logo
+- [ ] Test logo upload and display throughout application
+- [ ] Push changes to GitHub
+
+## AI Chat Database Fix
+- [x] Debug why AI chat isn't querying Discord messages database
+- [x] Verify database query logic in sendMessage procedure
+- [x] Improve channel keyword detection (e.g., "wins" -> #wins-and-shoutouts)
+- [x] Broaden search to return recent messages when no specific search terms
+- [ ] Test AI chat with channel-specific queries
+
+## Chat UI Layout Fix
+- [x] Fix sidebar to not scroll with chat messages
+- [x] Fix message input to stay at bottom of screen when scrolling
+- [ ] Test chat scrolling behavior
+
+## Profile Dropdown Menu
+- [x] Remove "Manage Webhooks" button from header
+- [x] Add profile image (Gravatar) to header
+- [x] Create dropdown menu on profile click
+- [x] Add "Edit Profile" option to dropdown
+- [x] Add "Settings" option to dropdown
+- [x] Add "Logout" option to dropdown
+- [ ] Test profile dropdown functionality
+
+## Home Screen Activity Stats
+- [x] Create backend endpoint to get Discord message count for 24h/7d
+- [x] Create backend endpoint to get Read.ai meeting count for 24h/7d
+- [x] Create backend endpoint to get AI chat count for 24h/7d
+- [x] Add stat cards to Home page showing activity metrics
+- [x] Add toggle to switch between 24-hour and 7-day views
+- [x] Style stat cards to match the design mockup
+- [ ] Test activity stats with real data
+
+## Message Attachments Display
+- [x] Update Discord bot to save attachment URLs to database
+- [x] Update database schema to store attachments
+- [x] Display images inline in Browse Messages page
+- [ ] Display images in AI chat responses when relevant
+- [ ] Test image display with real Discord messages

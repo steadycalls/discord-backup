@@ -203,9 +203,10 @@ export const appRouter = router({
                             input.content.match(/#([-\w]+)/);
         
         let channelFilter: string | undefined;
+        const channels = await getDiscordChannels();
+        
         if (channelMatch) {
           const channelName = channelMatch[1];
-          const channels = await getDiscordChannels();
           const matchedChannel = channels.find(ch => 
             ch.name.toLowerCase().includes(channelName.toLowerCase()) ||
             channelName.toLowerCase().includes(ch.name.toLowerCase())
@@ -213,16 +214,27 @@ export const appRouter = router({
           if (matchedChannel) {
             channelFilter = matchedChannel.id;
           }
+        } else {
+          // Try to infer channel from keywords in the message
+          const lowerContent = input.content.toLowerCase();
+          const inferredChannel = channels.find(ch => {
+            const channelWords = ch.name.toLowerCase().split('-');
+            return channelWords.some(word => lowerContent.includes(word) && word.length > 3);
+          });
+          if (inferredChannel) {
+            channelFilter = inferredChannel.id;
+          }
         }
         
         // Build comprehensive context from all databases
         let context = "\n\n=== AVAILABLE DATA ===";
         
-        // 1. Search Discord messages
+        // 1. Search Discord messages - use broader search if no specific search terms
+        const hasSpecificSearch = input.content.split(' ').some(word => word.length > 4);
         const searchResults = await getDiscordMessages({
-          searchText: input.content,
+          searchText: hasSpecificSearch ? input.content : undefined,
           channelId: channelFilter,
-          limit: 10,
+          limit: 20,
         });
         
         if (searchResults.messages.length > 0) {
@@ -534,6 +546,53 @@ When answering questions:
         const { getSearchSuggestions } = await import("./db");
         return await getSearchSuggestions(input.query, input.limit);
       }),
+  }),
+
+  // Activity Stats
+  stats: router({
+    activity: publicProcedure
+      .input(z.object({ timeRange: z.enum(["24h", "7d"]) }))
+      .query(async ({ input }) => {
+        const { getActivityStats } = await import("./db");
+        return getActivityStats(input.timeRange);
+      }),
+  }),
+
+  // Logo Management
+  logo: router({
+    upload: protectedProcedure
+      .input(z.object({
+        file: z.string(), // base64 encoded image
+        filename: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { storagePut } = await import("./storage");
+        
+        // Decode base64 to buffer
+        const base64Data = input.file.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Generate unique filename
+        const timestamp = Date.now();
+        const fileKey = `logos/${ctx.user.id}-${timestamp}-${input.filename}`;
+        
+        // Upload to S3
+        const { url } = await storagePut(fileKey, buffer, input.mimeType);
+        
+        // Store logo URL in user settings
+        const { upsertLogoUrl } = await import("./db");
+        await upsertLogoUrl(ctx.user.id, url);
+        
+        return { url };
+      }),
+    get: publicProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) return { url: null };
+      
+      const { getLogoUrl } = await import("./db");
+      const logoUrl = await getLogoUrl(ctx.user.id);
+      return { url: logoUrl };
+    }),
   }),
 });
 

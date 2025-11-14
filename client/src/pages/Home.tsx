@@ -2,11 +2,88 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
-import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3 } from "lucide-react";
-import { Link } from "wouter";
+import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3, User, Settings, LogOut, ChevronDown, TrendingUp } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { trpc } from "@/lib/trpc";
+import { Link, useLocation } from "wouter";
+import React from "react";
+
+function ProfileDropdown({ user }: { user: any }) {
+  const [, setLocation] = useLocation();
+  const logoutMutation = trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      window.location.href = "/";
+    },
+  });
+
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="flex items-center gap-2 hover:bg-slate-800">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.email ? `https://www.gravatar.com/avatar/${md5(user.email.toLowerCase())}?d=identicon` : undefined} />
+            <AvatarFallback className="bg-blue-600 text-white">
+              {user?.name?.charAt(0)?.toUpperCase() || "U"}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-slate-300">{user?.name}</span>
+          <ChevronDown className="w-4 h-4 text-slate-400" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56 bg-slate-800 border-slate-700">
+        <DropdownMenuItem asChild className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">
+          <Link href="/settings">
+            <User className="w-4 h-4 mr-2" />
+            <span>Edit Profile</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">
+          <Link href="/settings">
+            <Settings className="w-4 h-4 mr-2" />
+            <span>Settings</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-slate-700" />
+        <DropdownMenuItem
+          onClick={handleLogout}
+          className="cursor-pointer text-red-400 focus:bg-slate-700 focus:text-red-300"
+          disabled={logoutMutation.isPending}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          <span>{logoutMutation.isPending ? "Logging out..." : "Logout"}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// Simple MD5 hash for Gravatar
+function md5(str: string): string {
+  // Simple hash for demo - in production use a proper MD5 library
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(16);
+}
 
 export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
+  const [timeRange, setTimeRange] = React.useState<"24h" | "7d">("24h");
+  const { data: stats, isLoading: statsLoading } = trpc.stats.activity.useQuery({ timeRange });
 
   if (loading) {
     return (
@@ -27,14 +104,7 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
-              <>
-                <span className="text-slate-300">Welcome, {user?.name}</span>
-                <Link href="/webhooks">
-                  <Button variant="outline" className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700">
-                    Manage Webhooks
-                  </Button>
-                </Link>
-              </>
+              <ProfileDropdown user={user} />
             ) : (
               <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
                 <a href={getLoginUrl()}>Sign In</a>
@@ -43,6 +113,85 @@ export default function Home() {
           </div>
         </div>
       </header>
+
+      {/* Activity Stats */}
+      {isAuthenticated && (
+        <section className="container mx-auto px-4 pt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-white">Activity Overview</h3>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={timeRange === "24h" ? "default" : "outline"}
+                onClick={() => setTimeRange("24h")}
+                className={timeRange === "24h" ? "bg-blue-600 hover:bg-blue-700" : "border-slate-600 text-slate-300 hover:bg-slate-800"}
+              >
+                24 Hours
+              </Button>
+              <Button
+                size="sm"
+                variant={timeRange === "7d" ? "default" : "outline"}
+                onClick={() => setTimeRange("7d")}
+                className={timeRange === "7d" ? "bg-blue-600 hover:bg-blue-700" : "border-slate-600 text-slate-300 hover:bg-slate-800"}
+              >
+                7 Days
+              </Button>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="bg-gradient-to-br from-blue-900/40 to-blue-800/40 border-blue-700">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white text-lg">Discord Messages</CardTitle>
+                  <MessageSquare className="w-8 h-8 text-blue-400" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold text-white mb-2">
+                  {statsLoading ? "..." : stats?.messages.toLocaleString() || 0}
+                </div>
+                <p className="text-sm text-blue-200">
+                  {timeRange === "24h" ? "in the last 24 hours" : "in the last 7 days"}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-900/40 to-purple-800/40 border-purple-700">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white text-lg">Read.ai Meetings</CardTitle>
+                  <Calendar className="w-8 h-8 text-purple-400" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold text-white mb-2">
+                  {statsLoading ? "..." : stats?.meetings.toLocaleString() || 0}
+                </div>
+                <p className="text-sm text-purple-200">
+                  {timeRange === "24h" ? "in the last 24 hours" : "in the last 7 days"}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-900/40 to-green-800/40 border-green-700">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-white text-lg">AI Chats</CardTitle>
+                  <Sparkles className="w-8 h-8 text-green-400" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold text-white mb-2">
+                  {statsLoading ? "..." : stats?.chats.toLocaleString() || 0}
+                </div>
+                <p className="text-sm text-green-200">
+                  {timeRange === "24h" ? "in the last 24 hours" : "in the last 7 days"}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
 
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">

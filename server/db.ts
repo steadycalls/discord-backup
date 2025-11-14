@@ -155,12 +155,31 @@ export async function getDiscordMessages(filters: {
     .limit(filters.limit || 50)
     .offset(filters.offset || 0);
 
+  // Fetch attachments for each message
+  const messageIds = messages.map(m => m.message.id);
+  const attachments = messageIds.length > 0
+    ? await db.select().from(discordAttachments).where(sql`${discordAttachments.messageId} IN (${sql.join(messageIds.map(id => sql`${id}`), sql`, `)})`)
+    : [];
+
+  // Group attachments by message ID
+  const attachmentsByMessage = attachments.reduce((acc, att) => {
+    if (!acc[att.messageId]) acc[att.messageId] = [];
+    acc[att.messageId].push(att);
+    return acc;
+  }, {} as Record<string, typeof attachments>);
+
+  // Add attachments to messages
+  const messagesWithAttachments = messages.map(m => ({
+    ...m,
+    attachments: attachmentsByMessage[m.message.id] || [],
+  }));
+
   const [countResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(discordMessages)
     .where(whereClause);
 
-  return { messages, total: countResult?.count || 0 };
+  return { messages: messagesWithAttachments, total: countResult?.count || 0 };
 }
 
 export async function getMessageAttachments(messageId: string) {
@@ -660,4 +679,98 @@ export async function getSearchSuggestions(query: string, limit: number = 10) {
   const topics = Array.from(topicSet).slice(0, limit);
   
   return { clients, participants, topics };
+}
+
+// User Settings Management
+export async function upsertLogoUrl(userId: number, logoUrl: string): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot upsert logo URL: database not available");
+    return;
+  }
+
+  try {
+    const { userSettings } = await import("../drizzle/schema");
+    await db.insert(userSettings).values({
+      userId,
+      logoUrl,
+    }).onDuplicateKeyUpdate({
+      set: { logoUrl },
+    });
+  } catch (error) {
+    console.error("[Database] Failed to upsert logo URL:", error);
+    throw error;
+  }
+}
+
+export async function getLogoUrl(userId: number): Promise<string | null> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get logo URL: database not available");
+    return null;
+  }
+
+  try {
+    const { userSettings } = await import("../drizzle/schema");
+    const result = await db.select().from(userSettings)
+      .where(eq(userSettings.userId, userId))
+      .limit(1);
+    
+    return result.length > 0 ? result[0].logoUrl : null;
+  } catch (error) {
+    console.error("[Database] Failed to get logo URL:", error);
+    return null;
+  }
+}
+
+// Activity Stats
+export async function getActivityStats(timeRange: "24h" | "7d") {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get activity stats: database not available");
+    return { messages: 0, meetings: 0, chats: 0 };
+  }
+
+  try {
+    const { discordMessages, meetings, chatConversations } = await import("../drizzle/schema");
+    
+    // Calculate the cutoff time
+    const now = new Date();
+    const cutoffTime = new Date(now);
+    if (timeRange === "24h") {
+      cutoffTime.setHours(cutoffTime.getHours() - 24);
+    } else {
+      cutoffTime.setDate(cutoffTime.getDate() - 7);
+    }
+
+    // Count Discord messages
+    const messageCountResult = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(discordMessages)
+      .where(sql`${discordMessages.createdAt} >= ${cutoffTime}`);
+    const messageCount = messageCountResult[0]?.count || 0;
+
+    // Count Read.ai meetings
+    const meetingCountResult = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(meetings)
+      .where(sql`${meetings.startTime} >= ${cutoffTime}`);
+    const meetingCount = meetingCountResult[0]?.count || 0;
+
+    // Count AI chat conversations
+    const chatCountResult = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(chatConversations)
+      .where(sql`${chatConversations.createdAt} >= ${cutoffTime}`);
+    const chatCount = chatCountResult[0]?.count || 0;
+
+    return {
+      messages: Number(messageCount),
+      meetings: Number(meetingCount),
+      chats: Number(chatCount),
+    };
+  } catch (error) {
+    console.error("[Database] Failed to get activity stats:", error);
+    return { messages: 0, meetings: 0, chats: 0 };
+  }
 }
