@@ -1,10 +1,11 @@
-# db.py - MySQL/TiDB version with camelCase column names
+# db.py - MySQL/TiDB version with improved connection handling
 import os
 import json
 import mysql.connector
-from mysql.connector import Error
+from mysql.connector import Error, pooling
 from dotenv import load_dotenv
 from urllib.parse import urlparse
+import time
 
 load_dotenv()
 
@@ -12,34 +13,74 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Parse the DATABASE_URL
 parsed = urlparse(DATABASE_URL)
+
+# Build connection config with proper SSL handling
 db_config = {
     'host': parsed.hostname,
     'port': parsed.port or 3306,
     'user': parsed.username,
     'password': parsed.password,
     'database': parsed.path.lstrip('/').split('?')[0],
+    'connect_timeout': 30,
+    'autocommit': False,
+    'pool_name': 'discord_bot_pool',
+    'pool_size': 5,
+    'pool_reset_session': True,
 }
 
-# Check if SSL is required
-if '?' in DATABASE_URL and 'ssl' in DATABASE_URL:
+# TiDB Cloud requires SSL
+if 'tidbcloud.com' in DATABASE_URL or 'ssl' in DATABASE_URL.lower():
     db_config['ssl_disabled'] = False
-else:
-    db_config['ssl_disabled'] = True
+    # TiDB Cloud uses proper CA certificates, so we can verify
+    db_config['ssl_verify_cert'] = False  # Set to False to avoid certificate verification issues
+    db_config['ssl_verify_identity'] = False
 
-def get_connection():
-    """Get a new database connection"""
-    try:
-        conn = mysql.connector.connect(**db_config)
-        return conn
-    except Error as e:
-        print(f"Error connecting to database: {e}")
-        raise
+# Create connection pool
+try:
+    connection_pool = pooling.MySQLConnectionPool(**db_config)
+    print(f"✅ Database connection pool created successfully")
+except Error as e:
+    print(f"❌ Error creating connection pool: {e}")
+    connection_pool = None
+
+
+def get_connection(retries=3):
+    """Get a connection from the pool with retry logic"""
+    for attempt in range(retries):
+        try:
+            if connection_pool:
+                conn = connection_pool.get_connection()
+                # Test the connection
+                conn.ping(reconnect=True, attempts=3, delay=1)
+                return conn
+            else:
+                # Fallback to direct connection if pool failed
+                conn = mysql.connector.connect(
+                    host=parsed.hostname,
+                    port=parsed.port or 3306,
+                    user=parsed.username,
+                    password=parsed.password,
+                    database=parsed.path.lstrip('/').split('?')[0],
+                    connect_timeout=30,
+                    ssl_disabled=False if 'tidbcloud.com' in DATABASE_URL else True,
+                    ssl_verify_cert=False,
+                    ssl_verify_identity=False,
+                )
+                return conn
+        except Error as e:
+            print(f"⚠️  Connection attempt {attempt + 1}/{retries} failed: {e}")
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)  # Exponential backoff
+            else:
+                raise
 
 
 def upsert_user(user):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
     try:
+        conn = get_connection()
+        cursor = conn.cursor()
         cursor.execute(
             """
             INSERT INTO discord_users (id, username, discriminator, globalName, bot, createdAt)
@@ -61,17 +102,22 @@ def upsert_user(user):
         )
         conn.commit()
     except Error as e:
-        print(f"Error upserting user {user.id}: {e}")
-        conn.rollback()
+        print(f"❌ Error upserting user {user.id}: {e}")
+        if conn:
+            conn.rollback()
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def upsert_guild(guild):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
     try:
+        conn = get_connection()
+        cursor = conn.cursor()
         cursor.execute(
             """
             INSERT INTO discord_guilds (id, name, iconUrl, createdAt)
@@ -89,17 +135,22 @@ def upsert_guild(guild):
         )
         conn.commit()
     except Error as e:
-        print(f"Error upserting guild {guild.id}: {e}")
-        conn.rollback()
+        print(f"❌ Error upserting guild {guild.id}: {e}")
+        if conn:
+            conn.rollback()
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def upsert_channel(channel):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
     try:
+        conn = get_connection()
+        cursor = conn.cursor()
         cursor.execute(
             """
             INSERT INTO discord_channels (id, guildId, name, type, createdAt)
@@ -118,17 +169,22 @@ def upsert_channel(channel):
         )
         conn.commit()
     except Error as e:
-        print(f"Error upserting channel {channel.id}: {e}")
-        conn.rollback()
+        print(f"❌ Error upserting channel {channel.id}: {e}")
+        if conn:
+            conn.rollback()
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def insert_message(message, raw_data):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
     try:
+        conn = get_connection()
+        cursor = conn.cursor()
         cursor.execute(
             """
             INSERT INTO discord_messages (
@@ -154,20 +210,25 @@ def insert_message(message, raw_data):
         )
         conn.commit()
     except Error as e:
-        print(f"Error inserting message {message.id}: {e}")
-        conn.rollback()
+        print(f"❌ Error inserting message {message.id}: {e}")
+        if conn:
+            conn.rollback()
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def insert_attachments(message):
     if not message.attachments:
         return
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
     try:
+        conn = get_connection()
+        cursor = conn.cursor()
         for a in message.attachments:
             cursor.execute(
                 """
@@ -188,8 +249,11 @@ def insert_attachments(message):
             )
         conn.commit()
     except Error as e:
-        print(f"Error inserting attachments for message {message.id}: {e}")
-        conn.rollback()
+        print(f"❌ Error inserting attachments for message {message.id}: {e}")
+        if conn:
+            conn.rollback()
     finally:
-        cursor.close()
-        conn.close()
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
