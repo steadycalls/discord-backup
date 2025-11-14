@@ -8,6 +8,7 @@ The `auto_archive_channels.py` script will:
 - ✅ Check all text channels in your Discord server
 - ✅ Find the last message date in each channel
 - ✅ Move channels with no messages in the last 30 days to the Archive category
+- ✅ Send a notification message to the MCP channel mentioning Evan
 - ✅ Skip channels already in the Archive category
 - ✅ Show detailed progress as it runs
 - ✅ Handle rate limits automatically
@@ -89,6 +90,20 @@ Examples:
 - `INACTIVITY_DAYS = 14` - Archive after 2 weeks
 - `INACTIVITY_DAYS = 60` - Archive after 2 months
 - `INACTIVITY_DAYS = 90` - Archive after 3 months
+
+## Customizing Notifications
+
+To change who gets notified or which channel receives notifications:
+
+```python
+NOTIFICATION_CHANNEL_ID = 1382205920502743110  # Change to your channel ID
+NOTIFY_USER_ID = 170328940798279689  # Change to the user ID to mention
+```
+
+**How to find IDs:**
+1. Enable Developer Mode in Discord (Settings → Advanced → Developer Mode)
+2. Right-click on the channel or user
+3. Click "Copy ID"
 
 ## Changing the Archive Category
 

@@ -16,6 +16,8 @@ load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 ARCHIVE_CATEGORY_ID = 688116533553266759  # Archive/Deleted Channels category
 INACTIVITY_DAYS = 30  # Number of days of inactivity before archiving
+NOTIFICATION_CHANNEL_ID = 1382205920502743110  # MCP channel for notifications
+NOTIFY_USER_ID = 170328940798279689  # Evan's user ID
 
 # Configure intents
 intents = discord.Intents.default()
@@ -110,6 +112,17 @@ async def on_ready():
                     await channel.edit(category=archive_category)
                     print(f"✓ Archived")
                     total_archived += 1
+
+                    # Send notification to MCP channel
+                    notification_channel = guild.get_channel(NOTIFICATION_CHANNEL_ID)
+                    if notification_channel:
+                        try:
+                            await notification_channel.send(
+                                f"<@{NOTIFY_USER_ID}> Channel **#{channel.name}** has been archived to "
+                                f"{archive_category.mention} due to {days_inactive} days of inactivity."
+                            )
+                        except Exception as e:
+                            print(f"    (Failed to send notification: {e})")
 
                     # Small delay to avoid rate limits
                     await asyncio.sleep(1)
