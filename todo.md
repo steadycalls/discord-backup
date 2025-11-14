@@ -170,5 +170,5 @@
 ## Domain-Based Access Control
 - [x] Add email domain whitelist check in authentication callback
 - [x] Allow @logicinbound.com domain users to access the application
-- [ ] Test with different email domains
-- [ ] Push changes to GitHub
+- [x] Test with different email domains
+- [x] Push changes to GitHub
