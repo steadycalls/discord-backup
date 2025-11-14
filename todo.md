@@ -186,5 +186,5 @@
 
 ## Title Update
 - [x] Replace all hardcoded "Discord Archive Webhook Manager" with APP_TITLE constant
-- [ ] Test title updates throughout the application
-- [ ] Push changes to GitHub
+- [x] Test title updates throughout the application
+- [x] Push changes to GitHub
