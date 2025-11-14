@@ -19,8 +19,8 @@ export default function Webhooks() {
     name: "",
     url: "",
     eventType: "all" as "message_insert" | "message_update" | "message_delete" | "all",
-    guildFilter: "",
-    channelFilter: "",
+    guildFilter: "none",
+    channelFilter: "none",
   });
 
   const utils = trpc.useUtils();
@@ -33,7 +33,7 @@ export default function Webhooks() {
     onSuccess: () => {
       utils.webhooks.list.invalidate();
       setIsCreateOpen(false);
-      setFormData({ name: "", url: "", eventType: "all", guildFilter: "", channelFilter: "" });
+      setFormData({ name: "", url: "", eventType: "all", guildFilter: "none", channelFilter: "none" });
       toast.success("Webhook created successfully");
     },
     onError: (error) => {
@@ -69,7 +69,11 @@ export default function Webhooks() {
       toast.error("Name and URL are required");
       return;
     }
-    createMutation.mutate(formData);
+    createMutation.mutate({
+      ...formData,
+      guildFilter: formData.guildFilter === "none" ? "" : formData.guildFilter,
+      channelFilter: formData.channelFilter === "none" ? "" : formData.channelFilter,
+    });
   };
 
   if (authLoading) {
@@ -275,7 +279,7 @@ export default function Webhooks() {
                   <SelectValue placeholder="All Guilds" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-700 border-slate-600">
-                  <SelectItem value="" className="text-white">
+                  <SelectItem value="none" className="text-white">
                     All Guilds
                   </SelectItem>
                   {guilds?.map((guild) => (

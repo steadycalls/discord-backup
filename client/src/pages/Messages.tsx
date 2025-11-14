@@ -5,21 +5,36 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Search } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 
 export default function Messages() {
   const [searchText, setSearchText] = useState("");
-  const [selectedGuild, setSelectedGuild] = useState<string>("");
-  const [selectedChannel, setSelectedChannel] = useState<string>("");
+  const [selectedGuild, setSelectedGuild] = useState<string>("all");
+  const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [page, setPage] = useState(0);
   const limit = 50;
 
   const { data: guilds } = trpc.discord.guilds.useQuery();
-  const { data: channels } = trpc.discord.channels.useQuery({ guildId: selectedGuild || undefined });
+  
+  // Set default guild to "Restoration Inbound" when guilds are loaded
+  useEffect(() => {
+    if (guilds && guilds.length > 0 && selectedGuild === "all") {
+      // Try exact match first
+      let restorationGuild = guilds.find(g => g.name === "Restoration Inbound");
+      // Try case-insensitive match if exact doesn't work
+      if (!restorationGuild) {
+        restorationGuild = guilds.find(g => g.name.toLowerCase().includes("restoration") && g.name.toLowerCase().includes("inbound"));
+      }
+      if (restorationGuild) {
+        setSelectedGuild(restorationGuild.id);
+      }
+    }
+  }, [guilds]);
+  const { data: channels } = trpc.discord.channels.useQuery({ guildId: selectedGuild !== "all" ? selectedGuild : undefined });
   const { data: messagesData, isLoading } = trpc.discord.messages.useQuery({
-    guildId: selectedGuild || undefined,
-    channelId: selectedChannel || undefined,
+    guildId: selectedGuild !== "all" ? selectedGuild : undefined,
+    channelId: selectedChannel !== "all" ? selectedChannel : undefined,
     searchText: searchText || undefined,
     limit,
     offset: page * limit,
@@ -83,7 +98,7 @@ export default function Messages() {
                     <SelectItem value="all" className="text-white">
                       All Channels
                     </SelectItem>
-                    {channels?.map((channel) => (
+                    {channels?.slice().sort((a, b) => a.name.localeCompare(b.name)).map((channel) => (
                       <SelectItem key={channel.id} value={channel.id} className="text-white">
                         #{channel.name}
                       </SelectItem>

@@ -1,0 +1,58 @@
+{
+  "query": "SHOW COLUMNS FROM discord_channels",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3LUpeoXP58LhHUq.f82e974e12b5 --database XL5QjA68jdBeiMJcnXvA94 --execute SHOW COLUMNS FROM discord_channels",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "varchar(64)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "guildId",
+      "Type": "varchar(64)",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "name",
+      "Type": "text",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "type",
+      "Type": "varchar(32)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "insertedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tvarchar(64)\tNO\tPRI\tNULL\t\nguildId\tvarchar(64)\tNO\tMUL\tNULL\t\nname\ttext\tNO\t\tNULL\t\ntype\tvarchar(32)\tNO\t\tNULL\t\ncreatedAt\ttimestamp\tNO\t\tNULL\t\ninsertedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\n",
+  "stderr": "",
+  "execution_time_ms": 94
+}

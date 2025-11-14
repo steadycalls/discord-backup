@@ -52,3 +52,22 @@
 - [x] Document webhook payload format
 - [x] Document database schema
 - [x] Create troubleshooting guide
+
+## Bug Fixes
+- [x] Fix Select component empty value error in Messages page channel filter
+- [x] Fix Select component empty value error in Webhooks page create form
+
+## UI Improvements
+- [x] Sort channels alphabetically (A-Z) in Messages page dropdown
+- [x] Set "Restoration Inbound" as default selected guild in Messages page
+- [x] Debug: Fix default guild not being set to "Restoration Inbound"
+- [x] Debug: Fix channel sorting not working alphabetically
+
+## Backfill Features
+- [x] Document how to backfill messages from last 30 days
+- [x] Create helper script for bulk backfilling all channels
+
+## Auto-Archive Feature
+- [x] Create script to move inactive channels (30+ days) to Archive category
+- [x] Document how to run the auto-archive script
+- [x] Add notification feature to send messages when channels are archived
