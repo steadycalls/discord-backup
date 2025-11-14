@@ -181,5 +181,5 @@
 ## Google Sheet Integration
 - [x] Add button on Meetings page to link to Google Sheet
 - [x] Add instructions to download and upload new version
-- [ ] Test button functionality
-- [ ] Push changes to GitHub
+- [x] Test button functionality
+- [x] Push changes to GitHub
