@@ -1,10 +1,10 @@
-# db.py - MySQL/TiDB version
+# db.py - MySQL/TiDB version with camelCase column names
 import os
 import json
 import mysql.connector
 from mysql.connector import Error
 from dotenv import load_dotenv
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 load_dotenv()
 
@@ -42,12 +42,12 @@ def upsert_user(user):
     try:
         cursor.execute(
             """
-            INSERT INTO discord_users (id, username, discriminator, global_name, bot, created_at)
+            INSERT INTO discord_users (id, username, discriminator, globalName, bot, createdAt)
             VALUES (%s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 username = VALUES(username),
                 discriminator = VALUES(discriminator),
-                global_name = VALUES(global_name),
+                globalName = VALUES(globalName),
                 bot = VALUES(bot)
             """,
             (
@@ -61,7 +61,7 @@ def upsert_user(user):
         )
         conn.commit()
     except Error as e:
-        print(f"Error upserting user: {e}")
+        print(f"Error upserting user {user.id}: {e}")
         conn.rollback()
     finally:
         cursor.close()
@@ -74,11 +74,11 @@ def upsert_guild(guild):
     try:
         cursor.execute(
             """
-            INSERT INTO discord_guilds (id, name, icon_url, created_at)
+            INSERT INTO discord_guilds (id, name, iconUrl, createdAt)
             VALUES (%s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
-                icon_url = VALUES(icon_url)
+                iconUrl = VALUES(iconUrl)
             """,
             (
                 str(guild.id),
@@ -89,7 +89,7 @@ def upsert_guild(guild):
         )
         conn.commit()
     except Error as e:
-        print(f"Error upserting guild: {e}")
+        print(f"Error upserting guild {guild.id}: {e}")
         conn.rollback()
     finally:
         cursor.close()
@@ -102,7 +102,7 @@ def upsert_channel(channel):
     try:
         cursor.execute(
             """
-            INSERT INTO discord_channels (id, guild_id, name, type, created_at)
+            INSERT INTO discord_channels (id, guildId, name, type, createdAt)
             VALUES (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
@@ -118,7 +118,7 @@ def upsert_channel(channel):
         )
         conn.commit()
     except Error as e:
-        print(f"Error upserting channel: {e}")
+        print(f"Error upserting channel {channel.id}: {e}")
         conn.rollback()
     finally:
         cursor.close()
@@ -132,9 +132,9 @@ def insert_message(message, raw_data):
         cursor.execute(
             """
             INSERT INTO discord_messages (
-                id, channel_id, guild_id, author_id,
-                content, created_at, edited_at,
-                is_pinned, is_tts, raw_json
+                id, channelId, guildId, authorId,
+                content, createdAt, editedAt,
+                isPinned, isTts, rawJson
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE id=id
@@ -154,7 +154,7 @@ def insert_message(message, raw_data):
         )
         conn.commit()
     except Error as e:
-        print(f"Error inserting message: {e}")
+        print(f"Error inserting message {message.id}: {e}")
         conn.rollback()
     finally:
         cursor.close()
@@ -172,7 +172,7 @@ def insert_attachments(message):
             cursor.execute(
                 """
                 INSERT INTO discord_attachments (
-                    id, message_id, url, filename, content_type, size_bytes
+                    id, messageId, url, filename, contentType, sizeBytes
                 )
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE id=id
@@ -188,7 +188,7 @@ def insert_attachments(message):
             )
         conn.commit()
     except Error as e:
-        print(f"Error inserting attachments: {e}")
+        print(f"Error inserting attachments for message {message.id}: {e}")
         conn.rollback()
     finally:
         cursor.close()
