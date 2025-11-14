@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Automated Bulk Backfill Script
-Fetches messages from the last 30 days across all channels in specified guilds.
+Fetches messages from the last 120 days across all channels in specified guilds.
 """
 
 import asyncio
@@ -22,7 +22,7 @@ from db import (
 load_dotenv()
 
 TOKEN = os.getenv("DISCORD_TOKEN")
-DAYS_TO_BACKFILL = 30  # Number of days to fetch messages from
+DAYS_TO_BACKFILL = 120  # Number of days to fetch messages from
 
 # Configure intents
 intents = discord.Intents.default()
