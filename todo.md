@@ -172,3 +172,8 @@
 - [x] Allow @logicinbound.com domain users to access the application
 - [x] Test with different email domains
 - [x] Push changes to GitHub
+
+## Bug Fixes
+- [x] Fix Select component empty string value error in Meetings page
+- [ ] Test Meetings page loads correctly
+- [ ] Push fix to GitHub

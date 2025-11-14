@@ -15,7 +15,7 @@ export default function Meetings() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [selectedChannel, setSelectedChannel] = useState<string>("");
+  const [selectedChannel, setSelectedChannel] = useState<string | undefined>(undefined);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -264,12 +264,12 @@ export default function Meetings() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Discord Channel</label>
-                  <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                  <Select value={selectedChannel} onValueChange={(val) => setSelectedChannel(val === "all" ? undefined : val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All channels" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All channels</SelectItem>
+                      <SelectItem value="all">All channels</SelectItem>
                       {/* Channel options will be populated from meeting data */}
                     </SelectContent>
                   </Select>
