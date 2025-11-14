@@ -49,7 +49,35 @@ async def on_message(message: discord.Message):
         upsert_channel(message.channel)
 
     # Insert message + attachments
-    raw_data = message.to_dict()
+    # Create a serializable dictionary of message data
+    raw_data = {
+        "id": str(message.id),
+        "content": message.content,
+        "author": {
+            "id": str(message.author.id),
+            "name": message.author.name,
+            "discriminator": getattr(message.author, "discriminator", None),
+            "bot": message.author.bot,
+        },
+        "channel_id": str(message.channel.id),
+        "guild_id": str(message.guild.id) if message.guild else None,
+        "created_at": message.created_at.isoformat(),
+        "edited_at": message.edited_at.isoformat() if message.edited_at else None,
+        "pinned": message.pinned,
+        "tts": message.tts,
+        "mention_everyone": message.mention_everyone,
+        "mentions": [str(u.id) for u in message.mentions],
+        "attachments": [
+            {
+                "id": str(a.id),
+                "filename": a.filename,
+                "url": a.url,
+                "size": a.size,
+                "content_type": a.content_type,
+            }
+            for a in message.attachments
+        ],
+    }
     insert_message(message, raw_data)
     insert_attachments(message)
 
@@ -75,7 +103,35 @@ async def backfill_channel(ctx, limit: int | None = None):
         if isinstance(msg.channel, discord.TextChannel):
             upsert_channel(msg.channel)
 
-        raw_data = msg.to_dict()
+        # Create a serializable dictionary of message data
+        raw_data = {
+            "id": str(msg.id),
+            "content": msg.content,
+            "author": {
+                "id": str(msg.author.id),
+                "name": msg.author.name,
+                "discriminator": getattr(msg.author, "discriminator", None),
+                "bot": msg.author.bot,
+            },
+            "channel_id": str(msg.channel.id),
+            "guild_id": str(msg.guild.id) if msg.guild else None,
+            "created_at": msg.created_at.isoformat(),
+            "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
+            "pinned": msg.pinned,
+            "tts": msg.tts,
+            "mention_everyone": msg.mention_everyone,
+            "mentions": [str(u.id) for u in msg.mentions],
+            "attachments": [
+                {
+                    "id": str(a.id),
+                    "filename": a.filename,
+                    "url": a.url,
+                    "size": a.size,
+                    "content_type": a.content_type,
+                }
+                for a in msg.attachments
+            ],
+        }
         insert_message(msg, raw_data)
         insert_attachments(msg)
         count += 1
