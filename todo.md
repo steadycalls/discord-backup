@@ -282,3 +282,27 @@
 - [x] Add save button to commit all changes at once
 - [x] Add navigation link to bulk edit page
 - [x] Test bulk edit functionality
+
+## Channel Grouping/Tags System
+- [x] Add tags field to discord channels schema
+- [x] Create backend endpoints for managing channel tags
+- [x] Add tag input/selection to Channel Settings page
+- [x] Add tag filter dropdown to Client Activity Table
+- [x] Add tag filter to Channel Settings page
+- [x] Test tag filtering functionality
+
+## Activity Alerts System
+- [x] Create alerts configuration table in database
+- [x] Add backend endpoint to configure alert rules
+- [x] Create alert checking logic (zero messages for X days, volume spikes)
+- [x] Add alerts configuration UI page
+- [x] Integrate with owner notification system
+- [x] Test alert triggering and notifications
+
+## CSV Import for Channel Settings
+- [ ] Add CSV upload button to Channel Settings page
+- [ ] Create CSV parser to read channel metadata
+- [ ] Validate CSV format and data
+- [ ] Apply CSV data to channel settings
+- [ ] Add download example CSV button
+- [ ] Test CSV import functionality

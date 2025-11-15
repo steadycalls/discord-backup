@@ -54,12 +54,14 @@ export const appRouter = router({
         channelId: z.string(),
         clientWebsite: z.string().optional(),
         clientBusinessName: z.string().optional(),
+        tags: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const { updateDiscordChannel } = await import("./db");
         await updateDiscordChannel(input.channelId, {
           clientWebsite: input.clientWebsite,
           clientBusinessName: input.clientBusinessName,
+          tags: input.tags,
         });
         return { success: true };
       }),
@@ -68,6 +70,7 @@ export const appRouter = router({
         channelId: z.string(),
         clientWebsite: z.string().optional(),
         clientBusinessName: z.string().optional(),
+        tags: z.string().optional(),
       })))
       .mutation(async ({ input }) => {
         const { updateDiscordChannel } = await import("./db");
@@ -75,6 +78,7 @@ export const appRouter = router({
           await updateDiscordChannel(channel.channelId, {
             clientWebsite: channel.clientWebsite,
             clientBusinessName: channel.clientBusinessName,
+            tags: channel.tags,
           });
         }
         return { success: true, count: input.length };
@@ -687,6 +691,51 @@ When answering questions:
       const { getLogoUrl } = await import("./db");
       const logoUrl = await getLogoUrl(ctx.user.id);
       return { url: logoUrl };
+    }),
+  }),
+
+  // Activity Alerts Routes
+  alerts: router({
+    list: protectedProcedure.query(async () => {
+      const { getActivityAlerts } = await import("./db");
+      return getActivityAlerts();
+    }),
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        alertType: z.enum(["zero_messages", "volume_spike"]),
+        threshold: z.number().min(1),
+        channelFilter: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { createActivityAlert } = await import("./db");
+        const id = await createActivityAlert(input);
+        return { id };
+      }),
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        threshold: z.number().min(1).optional(),
+        isActive: z.number().optional(),
+        channelFilter: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { updateActivityAlert } = await import("./db");
+        await updateActivityAlert(input.id, input);
+        return { success: true };
+      }),
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const { deleteActivityAlert } = await import("./db");
+        await deleteActivityAlert(input.id);
+        return { success: true };
+      }),
+    checkAlerts: protectedProcedure.mutation(async () => {
+      const { checkAndTriggerAlerts } = await import("./db");
+      const triggered = await checkAndTriggerAlerts();
+      return { triggered };
     }),
   }),
 });

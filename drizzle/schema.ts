@@ -41,6 +41,7 @@ export const discordChannels = mysqlTable("discord_channels", {
   type: varchar("type", { length: 32 }).notNull(), // text, voice, forum, etc.
   clientWebsite: text("clientWebsite"), // Optional: client's website URL
   clientBusinessName: text("clientBusinessName"), // Optional: client's business name
+  tags: text("tags"), // Comma-separated tags for grouping/filtering
   createdAt: timestamp("createdAt").notNull(),
   insertedAt: timestamp("insertedAt").defaultNow().notNull(),
 });
@@ -185,3 +186,19 @@ export const clientMappings = mysqlTable("client_mappings", {
 
 export type ClientMapping = typeof clientMappings.$inferSelect;
 export type InsertClientMapping = typeof clientMappings.$inferInsert;
+
+// Activity Alerts Configuration
+export const activityAlerts = mysqlTable("activity_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  alertType: mysqlEnum("alertType", ["zero_messages", "volume_spike"]).notNull(),
+  threshold: int("threshold").notNull(), // Days for zero_messages, percentage for volume_spike
+  isActive: int("isActive").default(1).notNull(),
+  channelFilter: text("channelFilter"), // Comma-separated channel IDs or tags
+  lastTriggered: timestamp("lastTriggered"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ActivityAlert = typeof activityAlerts.$inferSelect;
+export type InsertActivityAlert = typeof activityAlerts.$inferInsert;

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 
 export default function ChannelSettings() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const [editedChannels, setEditedChannels] = useState<Record<string, { clientWebsite?: string; clientBusinessName?: string }>>({});
+  const [editedChannels, setEditedChannels] = useState<Record<string, { clientWebsite?: string; clientBusinessName?: string; tags?: string }>>({});
 
   const channelsQuery = trpc.discord.channels.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -28,7 +28,7 @@ export default function ChannelSettings() {
     },
   });
 
-  const handleFieldChange = (channelId: string, field: 'clientWebsite' | 'clientBusinessName', value: string) => {
+  const handleFieldChange = (channelId: string, field: 'clientWebsite' | 'clientBusinessName' | 'tags', value: string) => {
     setEditedChannels(prev => ({
       ...prev,
       [channelId]: {
@@ -126,9 +126,10 @@ export default function ChannelSettings() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[300px]">Channel Name</TableHead>
-                      <TableHead className="w-[300px]">Client Website</TableHead>
-                      <TableHead className="w-[300px]">Client Business Name</TableHead>
+                      <TableHead className="w-[250px]">Channel Name</TableHead>
+                      <TableHead className="w-[250px]">Client Website</TableHead>
+                      <TableHead className="w-[250px]">Client Business Name</TableHead>
+                      <TableHead className="w-[200px]">Tags</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -153,6 +154,14 @@ export default function ChannelSettings() {
                               value={currentBusinessName}
                               onChange={(e) => handleFieldChange(channel.id, 'clientBusinessName', e.target.value)}
                               placeholder="Business Name"
+                              className="w-full"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={editedChannels[channel.id]?.tags ?? channel.tags ?? ''}
+                              onChange={(e) => handleFieldChange(channel.id, 'tags', e.target.value)}
+                              placeholder="tag1, tag2"
                               className="w-full"
                             />
                           </TableCell>

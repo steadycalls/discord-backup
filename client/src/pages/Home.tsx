@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
-import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3, User, Settings, LogOut, ChevronDown, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Edit } from "lucide-react";
+import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3, User, Settings, LogOut, ChevronDown, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Edit, Filter, Bell } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,6 +87,7 @@ export default function Home() {
   const [clientTimeRange, setClientTimeRange] = React.useState<"24h" | "7d" | "30d">("24h");
   const [sortColumn, setSortColumn] = React.useState<"channelName" | "messageCount" | "meetingCount" | null>("messageCount");
   const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc");
+  const [selectedTag, setSelectedTag] = React.useState<string>("all");
   const { data: activityStats } = trpc.stats.activity.useQuery({ timeRange });
   const { data: clientChannelStats } = trpc.stats.clientChannels.useQuery({ timeRange: clientTimeRange });
 
@@ -99,10 +100,35 @@ export default function Home() {
     }
   };
 
+  // Extract unique tags from all channels
+  const availableTags = React.useMemo(() => {
+    if (!clientChannelStats) return [];
+    const tagSet = new Set<string>();
+    clientChannelStats.forEach(channel => {
+      if (channel.tags) {
+        channel.tags.split(',').forEach((tag: string) => {
+          const trimmed = tag.trim();
+          if (trimmed) tagSet.add(trimmed);
+        });
+      }
+    });
+    return Array.from(tagSet).sort();
+  }, [clientChannelStats]);
+
   const sortedClientChannelStats = React.useMemo(() => {
     if (!clientChannelStats || clientChannelStats.length === 0) return [];
     
-    const sorted = [...clientChannelStats];
+    // Filter by tag first
+    let filtered = [...clientChannelStats];
+    if (selectedTag !== "all") {
+      filtered = filtered.filter(channel => {
+        if (!channel.tags) return false;
+        const tags = channel.tags.split(',').map(t => t.trim());
+        return tags.includes(selectedTag);
+      });
+    }
+    
+    const sorted = filtered;
     
     if (sortColumn === "channelName") {
       sorted.sort((a, b) => {
@@ -122,7 +148,7 @@ export default function Home() {
     }
     
     return sorted;
-  }, [clientChannelStats, sortColumn, sortDirection]);
+  }, [clientChannelStats, sortColumn, sortDirection, selectedTag]);
 
   if (loading) {
     return (
@@ -270,12 +296,20 @@ export default function Home() {
               </Button>
             </Link>
             {isAuthenticated && (
-              <Link href="/webhooks">
-                <Button size="lg" variant="outline" className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700">
-                  <Webhook className="w-5 h-5 mr-2" />
-                  Configure Webhooks
-                </Button>
-              </Link>
+              <>
+                <Link href="/webhooks">
+                  <Button size="lg" variant="outline" className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700">
+                    <Webhook className="w-5 h-5 mr-2" />
+                    Configure Webhooks
+                  </Button>
+                </Link>
+                <Link href="/alerts">
+                  <Button size="lg" variant="outline" className="bg-slate-800 border-slate-600 text-white hover:bg-slate-700">
+                    <Bell className="w-5 h-5 mr-2" />
+                    Activity Alerts
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -292,6 +326,36 @@ export default function Home() {
                   <CardTitle className="text-white text-xl">Client Channel Activity</CardTitle>
                 </div>
                 <div className="flex gap-2">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                      >
+                        <Filter className="w-4 h-4 mr-2" />
+                        {selectedTag === "all" ? "All Tags" : selectedTag}
+                        <ChevronDown className="w-4 h-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+                      <DropdownMenuItem
+                        onClick={() => setSelectedTag("all")}
+                        className="text-slate-200 hover:bg-slate-700 cursor-pointer"
+                      >
+                        All Tags
+                      </DropdownMenuItem>
+                      {availableTags.map(tag => (
+                        <DropdownMenuItem
+                          key={tag}
+                          onClick={() => setSelectedTag(tag)}
+                          className="text-slate-200 hover:bg-slate-700 cursor-pointer"
+                        >
+                          {tag}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     size="sm"
                     variant="outline"

@@ -15,6 +15,7 @@ import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import ClientDatabase from "./pages/ClientDatabase";
 import ChannelSettings from "./pages/ChannelSettings";
+import Alerts from "./pages/Alerts";
 
 function Router() {
   return (
@@ -30,6 +31,7 @@ function Router() {
       <Route path={"/discord-client-match"} component={DiscordClientMatch} />
       <Route path={"/analytics"} component={Analytics} />
       <Route path={"/channel-settings"} component={ChannelSettings} />
+      <Route path={"/alerts"} component={Alerts} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

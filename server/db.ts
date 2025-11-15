@@ -790,12 +790,13 @@ export async function getClientChannelStats(hoursBack: number = 24) {
       channelName: discordChannels.name,
       clientWebsite: discordChannels.clientWebsite,
       clientBusinessName: discordChannels.clientBusinessName,
+      tags: discordChannels.tags,
       messageCount: sql<number>`COUNT(${discordMessages.id})`,
     })
     .from(discordChannels)
     .leftJoin(discordMessages, eq(discordChannels.id, discordMessages.channelId))
     .where(sql`${discordMessages.createdAt} >= ${cutoffDate}`)
-    .groupBy(discordChannels.id, discordChannels.name, discordChannels.clientWebsite, discordChannels.clientBusinessName)
+    .groupBy(discordChannels.id, discordChannels.name, discordChannels.clientWebsite, discordChannels.clientBusinessName, discordChannels.tags)
     .orderBy(sql`COUNT(${discordMessages.id}) DESC`);
   
   // Get meeting counts per channel
@@ -831,6 +832,7 @@ export async function updateDiscordChannel(
   updates: {
     clientWebsite?: string;
     clientBusinessName?: string;
+    tags?: string;
   }
 ) {
   const db = await getDb();
@@ -840,4 +842,202 @@ export async function updateDiscordChannel(
     .update(discordChannels)
     .set(updates)
     .where(eq(discordChannels.id, channelId));
+}
+
+// Activity Alerts Management
+export async function getActivityAlerts() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { activityAlerts } = await import("../drizzle/schema");
+  return db.select().from(activityAlerts);
+}
+
+export async function createActivityAlert(data: {
+  name: string;
+  alertType: "zero_messages" | "volume_spike";
+  threshold: number;
+  channelFilter?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { activityAlerts } = await import("../drizzle/schema");
+  const result = await db.insert(activityAlerts).values(data);
+  return result[0].insertId;
+}
+
+export async function updateActivityAlert(
+  id: number,
+  updates: {
+    name?: string;
+    threshold?: number;
+    isActive?: number;
+    channelFilter?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { activityAlerts } = await import("../drizzle/schema");
+  await db
+    .update(activityAlerts)
+    .set(updates)
+    .where(eq(activityAlerts.id, id));
+}
+
+export async function deleteActivityAlert(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const { activityAlerts } = await import("../drizzle/schema");
+  await db.delete(activityAlerts).where(eq(activityAlerts.id, id));
+}
+
+export async function checkAndTriggerAlerts() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const { activityAlerts } = await import("../drizzle/schema");
+  const { notifyOwner } = await import("./_core/notification");
+  
+  const alerts = await db
+    .select()
+    .from(activityAlerts)
+    .where(eq(activityAlerts.isActive, 1));
+  
+  const triggered = [];
+  
+  for (const alert of alerts) {
+    if (alert.alertType === "zero_messages") {
+      // Check for channels with zero messages in the last X days
+      const hoursBack = alert.threshold * 24;
+      const cutoffDate = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
+      
+      const channelsWithMessages = await db
+        .select({ channelId: discordMessages.channelId })
+        .from(discordMessages)
+        .where(sql`${discordMessages.createdAt} >= ${cutoffDate}`)
+        .groupBy(discordMessages.channelId);
+      
+      const activeChannelIds = new Set(channelsWithMessages.map(c => c.channelId));
+      
+      // Get all channels
+      const allChannels = await db.select().from(discordChannels);
+      
+      // Filter channels based on alert filter
+      let filteredChannels = allChannels;
+      if (alert.channelFilter) {
+        const filterTags = alert.channelFilter.split(',').map(t => t.trim());
+        filteredChannels = allChannels.filter(channel => {
+          if (filterTags.includes(channel.id)) return true;
+          if (channel.tags) {
+            const channelTags = channel.tags.split(',').map(t => t.trim());
+            return filterTags.some(tag => channelTags.includes(tag));
+          }
+          return false;
+        });
+      }
+      
+      // Find channels with zero messages
+      const inactiveChannels = filteredChannels.filter(
+        channel => !activeChannelIds.has(channel.id)
+      );
+      
+      if (inactiveChannels.length > 0) {
+        const channelNames = inactiveChannels.map(c => c.name).join(', ');
+        await notifyOwner({
+          title: `Alert: ${alert.name}`,
+          content: `${inactiveChannels.length} channel(s) have had zero messages in the last ${alert.threshold} days: ${channelNames}`,
+        });
+        
+        triggered.push({
+          alertId: alert.id,
+          alertName: alert.name,
+          channelCount: inactiveChannels.length,
+        });
+        
+        // Update last triggered time
+        await db
+          .update(activityAlerts)
+          .set({ lastTriggered: new Date() })
+          .where(eq(activityAlerts.id, alert.id));
+      }
+    } else if (alert.alertType === "volume_spike") {
+      // Check for unusual message volume spikes
+      const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const last7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      
+      const channels24h = await db
+        .select({
+          channelId: discordMessages.channelId,
+          count: sql<number>`COUNT(${discordMessages.id})`,
+        })
+        .from(discordMessages)
+        .where(sql`${discordMessages.createdAt} >= ${last24h}`)
+        .groupBy(discordMessages.channelId);
+      
+      const channels7d = await db
+        .select({
+          channelId: discordMessages.channelId,
+          count: sql<number>`COUNT(${discordMessages.id})`,
+        })
+        .from(discordMessages)
+        .where(sql`${discordMessages.createdAt} >= ${last7d}`)
+        .groupBy(discordMessages.channelId);
+      
+      const avgMap = new Map<string, number>();
+      channels7d.forEach(c => {
+        avgMap.set(c.channelId, c.count / 7);
+      });
+      
+      const spikes = [];
+      for (const c24 of channels24h) {
+        const avg = avgMap.get(c24.channelId) || 0;
+        if (avg > 0) {
+          const percentIncrease = ((c24.count - avg) / avg) * 100;
+          if (percentIncrease >= alert.threshold) {
+            const channel = await db
+              .select()
+              .from(discordChannels)
+              .where(eq(discordChannels.id, c24.channelId))
+              .limit(1);
+            
+            if (channel[0]) {
+              spikes.push({
+                channelName: channel[0].name,
+                increase: Math.round(percentIncrease),
+                count: c24.count,
+              });
+            }
+          }
+        }
+      }
+      
+      if (spikes.length > 0) {
+        const spikeDetails = spikes
+          .map(s => `${s.channelName}: +${s.increase}% (${s.count} messages)`)
+          .join(', ');
+        
+        await notifyOwner({
+          title: `Alert: ${alert.name}`,
+          content: `${spikes.length} channel(s) have unusual message volume spikes: ${spikeDetails}`,
+        });
+        
+        triggered.push({
+          alertId: alert.id,
+          alertName: alert.name,
+          channelCount: spikes.length,
+        });
+        
+        // Update last triggered time
+        await db
+          .update(activityAlerts)
+          .set({ lastTriggered: new Date() })
+          .where(eq(activityAlerts.id, alert.id));
+      }
+    }
+  }
+  
+  return triggered;
 }
