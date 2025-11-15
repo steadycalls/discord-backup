@@ -14,6 +14,7 @@ import WebhookLogs from "./pages/WebhookLogs";
 import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import ClientDatabase from "./pages/ClientDatabase";
+import ChannelWebhooks from "./pages/ChannelWebhooks";
 
 function Router() {
   return (
@@ -23,6 +24,7 @@ function Router() {
       <Route path={"/messages"} component={Messages} />
       <Route path={"/webhooks"} component={Webhooks} />
       <Route path={"/webhook-logs"} component={WebhookLogs} />
+      <Route path={"/channel-webhooks"} component={ChannelWebhooks} />
       <Route path={"/chat"} component={Chat} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/client-database"} component={ClientDatabase} />
