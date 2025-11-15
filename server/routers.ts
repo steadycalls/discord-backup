@@ -49,6 +49,36 @@ export const appRouter = router({
       const { getMessageAttachments } = await import("./db");
       return getMessageAttachments(input.messageId);
     }),
+    updateChannel: protectedProcedure
+      .input(z.object({
+        channelId: z.string(),
+        clientWebsite: z.string().optional(),
+        clientBusinessName: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { updateDiscordChannel } = await import("./db");
+        await updateDiscordChannel(input.channelId, {
+          clientWebsite: input.clientWebsite,
+          clientBusinessName: input.clientBusinessName,
+        });
+        return { success: true };
+      }),
+    bulkUpdateChannels: protectedProcedure
+      .input(z.array(z.object({
+        channelId: z.string(),
+        clientWebsite: z.string().optional(),
+        clientBusinessName: z.string().optional(),
+      })))
+      .mutation(async ({ input }) => {
+        const { updateDiscordChannel } = await import("./db");
+        for (const channel of input) {
+          await updateDiscordChannel(channel.channelId, {
+            clientWebsite: channel.clientWebsite,
+            clientBusinessName: channel.clientBusinessName,
+          });
+        }
+        return { success: true, count: input.length };
+      }),
   }),
 
   // Webhook Management Routes

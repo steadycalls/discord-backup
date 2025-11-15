@@ -274,3 +274,11 @@
 ## Analytics Page Default Date Range
 - [x] Set Analytics page to default to previous 7 days on load
 - [x] Test Analytics page loads with 7-day data automatically
+
+## Bulk Edit Client Metadata
+- [x] Create backend endpoint to update channel metadata (website, business name)
+- [x] Create bulk edit page with editable table showing all channels
+- [x] Add inline editing for website and business name fields
+- [x] Add save button to commit all changes at once
+- [x] Add navigation link to bulk edit page
+- [x] Test bulk edit functionality

@@ -14,6 +14,7 @@ import WebhookLogs from "./pages/WebhookLogs";
 import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import ClientDatabase from "./pages/ClientDatabase";
+import ChannelSettings from "./pages/ChannelSettings";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
       <Route path={"/client-database"} component={ClientDatabase} />
       <Route path={"/discord-client-match"} component={DiscordClientMatch} />
       <Route path={"/analytics"} component={Analytics} />
+      <Route path={"/channel-settings"} component={ChannelSettings} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

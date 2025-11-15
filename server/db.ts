@@ -824,3 +824,20 @@ export async function getClientChannelStats(hoursBack: number = 24) {
   
   return results;
 }
+
+// Update Discord Channel Metadata
+export async function updateDiscordChannel(
+  channelId: string,
+  updates: {
+    clientWebsite?: string;
+    clientBusinessName?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db
+    .update(discordChannels)
+    .set(updates)
+    .where(eq(discordChannels.id, channelId));
+}

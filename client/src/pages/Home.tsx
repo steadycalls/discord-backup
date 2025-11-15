@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
-import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3, User, Settings, LogOut, ChevronDown, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3, User, Settings, LogOut, ChevronDown, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown, Edit } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -292,6 +292,17 @@ export default function Home() {
                   <CardTitle className="text-white text-xl">Client Channel Activity</CardTitle>
                 </div>
                 <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    asChild
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                  >
+                    <Link href="/channel-settings">
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Settings
+                    </Link>
+                  </Button>
                   <Button
                     size="sm"
                     variant={clientTimeRange === "24h" ? "default" : "outline"}
