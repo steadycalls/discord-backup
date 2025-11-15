@@ -238,3 +238,22 @@
 - [x] Add "Download Sample CSV" button to Meetings page
 - [x] Create sample CSV with correct format and example data
 - [x] Test CSV download functionality
+
+## Client Activity Table
+- [x] Create backend endpoint to get client channel stats by date range
+- [x] Add client website and business name fields to channels table
+- [x] Create client activity table UI below Configure Webhooks button
+- [x] Add date range toggle (24h / 7d / 30d) for client stats
+- [x] Display client channel, message count, website, and business name
+- [x] Style table to match design mockup
+- [x] Test client activity table with real data
+
+## AI Chat File Upload Support
+- [x] Add file upload button to AI chat input area
+- [x] Support image upload (jpg, png, gif, webp)
+- [x] Support PDF upload
+- [x] Support paste images from clipboard
+- [x] Upload files to S3 storage
+- [x] Send file URLs to LLM with vision support
+- [x] Display uploaded files in chat interface
+- [x] Test file upload with images and PDFs

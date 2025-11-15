@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
 import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3, User, Settings, LogOut, ChevronDown, TrendingUp } from "lucide-react";
 import {
@@ -83,7 +84,9 @@ function md5(str: string): string {
 export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
   const [timeRange, setTimeRange] = React.useState<"24h" | "7d">("24h");
-  const { data: stats, isLoading: statsLoading } = trpc.stats.activity.useQuery({ timeRange });
+  const [clientTimeRange, setClientTimeRange] = React.useState<"24h" | "7d" | "30d">("24h");
+  const { data: activityStats } = trpc.stats.activity.useQuery({ timeRange });
+  const { data: clientChannelStats } = trpc.stats.clientChannels.useQuery({ timeRange: clientTimeRange });
 
   if (loading) {
     return (
@@ -148,7 +151,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="text-4xl font-bold text-white mb-2">
-                  {statsLoading ? "..." : stats?.messages.toLocaleString() || 0}
+                  {activityStats?.messages.toLocaleString() || 0}
                 </div>
                 <p className="text-sm text-blue-200">
                   {timeRange === "24h" ? "in the last 24 hours" : "in the last 7 days"}
@@ -165,7 +168,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="text-4xl font-bold text-white mb-2">
-                  {statsLoading ? "..." : stats?.meetings.toLocaleString() || 0}
+                  {activityStats?.meetings.toLocaleString() || 0}
                 </div>
                 <p className="text-sm text-purple-200">
                   {timeRange === "24h" ? "in the last 24 hours" : "in the last 7 days"}
@@ -182,7 +185,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <div className="text-4xl font-bold text-white mb-2">
-                  {statsLoading ? "..." : stats?.chats.toLocaleString() || 0}
+                  {activityStats?.chats.toLocaleString() || 0}
                 </div>
                 <p className="text-sm text-green-200">
                   {timeRange === "24h" ? "in the last 24 hours" : "in the last 7 days"}
@@ -241,6 +244,90 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Client Activity Table */}
+      {isAuthenticated && (
+        <section className="container mx-auto px-4 py-8">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="w-6 h-6 text-red-400" />
+                  <CardTitle className="text-white text-xl">Client Channel Activity</CardTitle>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={clientTimeRange === "24h" ? "default" : "outline"}
+                    onClick={() => setClientTimeRange("24h")}
+                    className={clientTimeRange === "24h" ? "bg-blue-600 hover:bg-blue-700" : "border-slate-600 text-slate-300 hover:bg-slate-700"}
+                  >
+                    24hrs
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={clientTimeRange === "7d" ? "default" : "outline"}
+                    onClick={() => setClientTimeRange("7d")}
+                    className={clientTimeRange === "7d" ? "bg-blue-600 hover:bg-blue-700" : "border-slate-600 text-slate-300 hover:bg-slate-700"}
+                  >
+                    7 Days
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={clientTimeRange === "30d" ? "default" : "outline"}
+                    onClick={() => setClientTimeRange("30d")}
+                    className={clientTimeRange === "30d" ? "bg-blue-600 hover:bg-blue-700" : "border-slate-600 text-slate-300 hover:bg-slate-700"}
+                  >
+                    30 Days
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-700">
+                      <TableHead className="text-red-400 font-semibold">Client Channel</TableHead>
+                      <TableHead className="text-red-400 font-semibold"># of Messages</TableHead>
+                      <TableHead className="text-red-400 font-semibold">Client Website</TableHead>
+                      <TableHead className="text-red-400 font-semibold">Client Business Name</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {clientChannelStats && clientChannelStats.length > 0 ? (
+                      clientChannelStats.map((channel) => (
+                        <TableRow key={channel.channelId} className="border-slate-700 hover:bg-slate-700/50">
+                          <TableCell className="text-slate-200">{channel.channelName}</TableCell>
+                          <TableCell className="text-slate-200">{channel.messageCount}</TableCell>
+                          <TableCell className="text-slate-200">
+                            {channel.clientWebsite ? (
+                              <a href={channel.clientWebsite} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                                {channel.clientWebsite}
+                              </a>
+                            ) : (
+                              <span className="text-slate-500">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-slate-200">
+                            {channel.clientBusinessName || <span className="text-slate-500">-</span>}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow className="border-slate-700">
+                        <TableCell colSpan={4} className="text-center text-slate-400 py-8">
+                          No client activity in the selected time range
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* Features */}
       <section className="container mx-auto px-4 py-16">

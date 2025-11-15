@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { APP_TITLE, getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { Loader2, MessageSquare, Plus, Send, Trash2 } from "lucide-react";
+import { Loader2, MessageSquare, Plus, Send, Trash2, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { toast } from "sonner";
@@ -14,7 +14,9 @@ export default function Chat() {
   const [, setLocation] = useLocation();
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
   const [messageInput, setMessageInput] = useState("");
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ url: string; filename: string; mimeType: string }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conversationsQuery = trpc.chat.conversations.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -36,10 +38,21 @@ export default function Chat() {
     },
   });
 
+  const uploadFileMutation = trpc.chat.uploadFile.useMutation({
+    onSuccess: (data) => {
+      setAttachedFiles(prev => [...prev, data]);
+      toast.success(`${data.filename} uploaded`);
+    },
+    onError: (error) => {
+      toast.error(`Upload failed: ${error.message}`);
+    },
+  });
+
   const sendMessageMutation = trpc.chat.sendMessage.useMutation({
     onSuccess: () => {
       messagesQuery.refetch();
       setMessageInput("");
+      setAttachedFiles([]);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -73,12 +86,81 @@ export default function Chat() {
     createConversationMutation.mutate({ title });
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    for (const file of Array.from(files)) {
+      // Check file type
+      if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+        toast.error(`${file.name}: Only images and PDFs are supported`);
+        continue;
+      }
+
+      // Check file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name}: File size must be less than 10MB`);
+        continue;
+      }
+
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        const base64Data = base64.split(',')[1]; // Remove data:image/png;base64, prefix
+        
+        uploadFileMutation.mutate({
+          file: base64Data,
+          filename: file.name,
+          mimeType: file.type,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+          const base64 = event.target?.result as string;
+          const base64Data = base64.split(',')[1];
+          
+          uploadFileMutation.mutate({
+            file: base64Data,
+            filename: `pasted-image-${Date.now()}.png`,
+            mimeType: item.type,
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() || !selectedConversationId) return;
     sendMessageMutation.mutate({
       conversationId: selectedConversationId,
       content: messageInput.trim(),
+      attachments: attachedFiles.length > 0 ? attachedFiles : undefined,
     });
   };
 
@@ -242,11 +324,70 @@ export default function Chat() {
             {/* Input Area - Fixed at bottom */}
             <div className="border-t border-border p-4 flex-shrink-0 bg-background">
               <form onSubmit={handleSendMessage} className="max-w-3xl mx-auto">
+                {/* Attached Files Preview */}
+                {attachedFiles.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {attachedFiles.map((file, index) => (
+                      <div key={index} className="relative group">
+                        {file.mimeType.startsWith('image/') ? (
+                          <div className="relative">
+                            <img
+                              src={file.url}
+                              alt={file.filename}
+                              className="h-20 w-20 object-cover rounded border border-border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFile(index)}
+                              className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="relative flex items-center gap-2 px-3 py-2 bg-muted rounded border border-border">
+                            <FileText className="w-4 h-4" />
+                            <span className="text-sm max-w-[150px] truncate">{file.filename}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFile(index)}
+                              className="ml-2 text-muted-foreground hover:text-foreground"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadFileMutation.isPending}
+                  >
+                    {uploadFileMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Paperclip className="w-4 h-4" />
+                    )}
+                  </Button>
                   <Input
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
-                    placeholder="Ask anything about your Discord messages..."
+                    onPaste={handlePaste}
+                    placeholder="Ask anything about your Discord messages... (paste images or attach files)"
                     disabled={sendMessageMutation.isPending}
                     className="flex-1"
                   />

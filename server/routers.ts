@@ -170,8 +170,39 @@ export const appRouter = router({
         const id = await createChatConversation(ctx.user.id, input.title);
         return { id };
       }),
+    uploadFile: protectedProcedure
+      .input(z.object({
+        file: z.string(), // base64 encoded file
+        filename: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { storagePut } = await import("./storage");
+        
+        // Decode base64
+        const buffer = Buffer.from(input.file, 'base64');
+        
+        // Generate unique filename
+        const timestamp = Date.now();
+        const randomSuffix = Math.random().toString(36).substring(7);
+        const ext = input.filename.split('.').pop() || 'bin';
+        const fileKey = `chat-uploads/${ctx.user.id}/${timestamp}-${randomSuffix}.${ext}`;
+        
+        // Upload to S3
+        const { url } = await storagePut(fileKey, buffer, input.mimeType);
+        
+        return { url, filename: input.filename, mimeType: input.mimeType };
+      }),
     sendMessage: protectedProcedure
-      .input(z.object({ conversationId: z.number(), content: z.string().min(1) }))
+      .input(z.object({ 
+        conversationId: z.number(), 
+        content: z.string().min(1),
+        attachments: z.array(z.object({
+          url: z.string(),
+          filename: z.string(),
+          mimeType: z.string(),
+        })).optional(),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { 
           createChatMessage, 
@@ -305,11 +336,38 @@ When answering questions:
           });
         });
         
-        // Add current user message with context
+        // Add current user message with context and attachments
+        const userMessageContent: any = [];
+        
+        // Add text content
+        userMessageContent.push({
+          type: "text",
+          text: input.content + context,
+        });
+        
+        // Add image attachments if present
+        if (input.attachments && input.attachments.length > 0) {
+          for (const attachment of input.attachments) {
+            if (attachment.mimeType.startsWith('image/')) {
+              userMessageContent.push({
+                type: "image_url",
+                image_url: {
+                  url: attachment.url,
+                },
+              });
+            }
+          }
+        }
+        
         messages.push({
           role: "user",
-          content: input.content + context,
+          content: userMessageContent,
         });
+        
+        // Use vision model if images are attached, otherwise use standard model
+        const model = input.attachments?.some(a => a.mimeType.startsWith('image/')) 
+          ? "gpt-4o" 
+          : "gpt-4o-mini";
         
         // Call OpenAI API
         const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -319,7 +377,7 @@ When answering questions:
             "Authorization": `Bearer ${settings.openaiApiKey}`,
           },
           body: JSON.stringify({
-            model: "gpt-4o-mini",
+            model,
             messages,
           }),
         });
@@ -555,6 +613,13 @@ When answering questions:
       .query(async ({ input }) => {
         const { getActivityStats } = await import("./db");
         return getActivityStats(input.timeRange);
+      }),
+    clientChannels: publicProcedure
+      .input(z.object({ timeRange: z.enum(["24h", "7d", "30d"]) }))
+      .query(async ({ input }) => {
+        const { getClientChannelStats } = await import("./db");
+        const hours = input.timeRange === "24h" ? 24 : input.timeRange === "7d" ? 168 : 720;
+        return getClientChannelStats(hours);
       }),
   }),
 

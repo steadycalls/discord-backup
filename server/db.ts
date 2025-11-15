@@ -774,3 +774,27 @@ export async function getActivityStats(timeRange: "24h" | "7d") {
     return { messages: 0, meetings: 0, chats: 0 };
   }
 }
+
+// Client Channel Statistics
+export async function getClientChannelStats(hoursBack: number = 24) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const cutoffDate = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
+  
+  const results = await db
+    .select({
+      channelId: discordChannels.id,
+      channelName: discordChannels.name,
+      clientWebsite: discordChannels.clientWebsite,
+      clientBusinessName: discordChannels.clientBusinessName,
+      messageCount: sql<number>`COUNT(${discordMessages.id})`,
+    })
+    .from(discordChannels)
+    .leftJoin(discordMessages, eq(discordChannels.id, discordMessages.channelId))
+    .where(sql`${discordMessages.createdAt} >= ${cutoffDate}`)
+    .groupBy(discordChannels.id, discordChannels.name, discordChannels.clientWebsite, discordChannels.clientBusinessName)
+    .orderBy(sql`COUNT(${discordMessages.id}) DESC`);
+  
+  return results;
+}

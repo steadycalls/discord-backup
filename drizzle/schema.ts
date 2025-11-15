@@ -39,6 +39,8 @@ export const discordChannels = mysqlTable("discord_channels", {
   guildId: varchar("guildId", { length: 64 }).notNull().references(() => discordGuilds.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   type: varchar("type", { length: 32 }).notNull(), // text, voice, forum, etc.
+  clientWebsite: text("clientWebsite"), // Optional: client's website URL
+  clientBusinessName: text("clientBusinessName"), // Optional: client's business name
   createdAt: timestamp("createdAt").notNull(),
   insertedAt: timestamp("insertedAt").defaultNow().notNull(),
 });
