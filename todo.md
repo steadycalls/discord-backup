@@ -257,3 +257,20 @@
 - [x] Send file URLs to LLM with vision support
 - [x] Display uploaded files in chat interface
 - [x] Test file upload with images and PDFs
+
+## Client Activity Table Sorting
+- [x] Add sort state management for table columns
+- [x] Add clickable column headers with sort indicators
+- [x] Implement sort by message count (ascending/descending)
+- [x] Implement sort by channel name
+- [x] Test sorting functionality
+
+## Add Meetings Column to Client Activity Table
+- [x] Update backend to include meeting counts per channel
+- [x] Add "# of Meetings" column to table
+- [x] Make meetings column sortable
+- [x] Test meetings column with real data
+
+## Analytics Page Default Date Range
+- [x] Set Analytics page to default to previous 7 days on load
+- [x] Test Analytics page loads with 7-day data automatically

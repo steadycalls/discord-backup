@@ -780,9 +780,11 @@ export async function getClientChannelStats(hoursBack: number = 24) {
   const db = await getDb();
   if (!db) return [];
   
+  const { meetings } = await import("../drizzle/schema");
   const cutoffDate = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
   
-  const results = await db
+  // Get message counts per channel
+  const messageResults = await db
     .select({
       channelId: discordChannels.id,
       channelName: discordChannels.name,
@@ -795,6 +797,30 @@ export async function getClientChannelStats(hoursBack: number = 24) {
     .where(sql`${discordMessages.createdAt} >= ${cutoffDate}`)
     .groupBy(discordChannels.id, discordChannels.name, discordChannels.clientWebsite, discordChannels.clientBusinessName)
     .orderBy(sql`COUNT(${discordMessages.id}) DESC`);
+  
+  // Get meeting counts per channel
+  const meetingResults = await db
+    .select({
+      channelId: meetings.matchedChannelId,
+      meetingCount: sql<number>`COUNT(${meetings.id})`,
+    })
+    .from(meetings)
+    .where(sql`${meetings.startTime} >= ${cutoffDate} AND ${meetings.matchedChannelId} IS NOT NULL`)
+    .groupBy(meetings.matchedChannelId);
+  
+  // Create a map of channel ID to meeting count
+  const meetingCountMap = new Map<string, number>();
+  meetingResults.forEach(result => {
+    if (result.channelId) {
+      meetingCountMap.set(result.channelId, result.meetingCount);
+    }
+  });
+  
+  // Combine message and meeting counts
+  const results = messageResults.map(channel => ({
+    ...channel,
+    meetingCount: meetingCountMap.get(channel.channelId) || 0,
+  }));
   
   return results;
 }

@@ -11,8 +11,21 @@ import { Input } from "@/components/ui/input";
 
 export default function Analytics() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  
+  // Default to previous 7 days
+  const getDefaultDates = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    return {
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+    };
+  };
+  
+  const defaultDates = getDefaultDates();
+  const [startDate, setStartDate] = useState(defaultDates.start);
+  const [endDate, setEndDate] = useState(defaultDates.end);
 
   const statsQuery = trpc.analytics.getMeetingStats.useQuery(
     { startDate: startDate || undefined, endDate: endDate || undefined },

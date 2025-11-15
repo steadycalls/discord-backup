@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { APP_LOGO, APP_TITLE, getLoginUrl } from "@/const";
-import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3, User, Settings, LogOut, ChevronDown, TrendingUp } from "lucide-react";
+import { Database, MessageSquare, Webhook, Sparkles, Calendar, BarChart3, User, Settings, LogOut, ChevronDown, TrendingUp, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,8 +85,44 @@ export default function Home() {
   const { user, loading, isAuthenticated } = useAuth();
   const [timeRange, setTimeRange] = React.useState<"24h" | "7d">("24h");
   const [clientTimeRange, setClientTimeRange] = React.useState<"24h" | "7d" | "30d">("24h");
+  const [sortColumn, setSortColumn] = React.useState<"channelName" | "messageCount" | "meetingCount" | null>("messageCount");
+  const [sortDirection, setSortDirection] = React.useState<"asc" | "desc">("desc");
   const { data: activityStats } = trpc.stats.activity.useQuery({ timeRange });
   const { data: clientChannelStats } = trpc.stats.clientChannels.useQuery({ timeRange: clientTimeRange });
+
+  const handleSort = (column: "channelName" | "messageCount" | "meetingCount") => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection(column === "messageCount" ? "desc" : "asc");
+    }
+  };
+
+  const sortedClientChannelStats = React.useMemo(() => {
+    if (!clientChannelStats || clientChannelStats.length === 0) return [];
+    
+    const sorted = [...clientChannelStats];
+    
+    if (sortColumn === "channelName") {
+      sorted.sort((a, b) => {
+        const comparison = a.channelName.localeCompare(b.channelName);
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    } else if (sortColumn === "messageCount") {
+      sorted.sort((a, b) => {
+        const comparison = a.messageCount - b.messageCount;
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    } else if (sortColumn === "meetingCount") {
+      sorted.sort((a, b) => {
+        const comparison = a.meetingCount - b.meetingCount;
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    }
+    
+    return sorted;
+  }, [clientChannelStats, sortColumn, sortDirection]);
 
   if (loading) {
     return (
@@ -288,15 +324,52 @@ export default function Home() {
                 <Table>
                   <TableHeader>
                     <TableRow className="border-slate-700">
-                      <TableHead className="text-red-400 font-semibold">Client Channel</TableHead>
-                      <TableHead className="text-red-400 font-semibold"># of Messages</TableHead>
+                      <TableHead className="text-red-400 font-semibold">
+                        <button
+                          onClick={() => handleSort("channelName")}
+                          className="flex items-center gap-1 hover:text-red-300 transition-colors"
+                        >
+                          Client Channel
+                          {sortColumn === "channelName" ? (
+                            sortDirection === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                          ) : (
+                            <ArrowUpDown className="w-4 h-4 opacity-50" />
+                          )}
+                        </button>
+                      </TableHead>
+                      <TableHead className="text-red-400 font-semibold">
+                        <button
+                          onClick={() => handleSort("messageCount")}
+                          className="flex items-center gap-1 hover:text-red-300 transition-colors"
+                        >
+                          # of Messages
+                          {sortColumn === "messageCount" ? (
+                            sortDirection === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                          ) : (
+                            <ArrowUpDown className="w-4 h-4 opacity-50" />
+                          )}
+                        </button>
+                      </TableHead>
                       <TableHead className="text-red-400 font-semibold">Client Website</TableHead>
                       <TableHead className="text-red-400 font-semibold">Client Business Name</TableHead>
+                      <TableHead className="text-red-400 font-semibold">
+                        <button
+                          onClick={() => handleSort("meetingCount")}
+                          className="flex items-center gap-1 hover:text-red-300 transition-colors"
+                        >
+                          # of Meetings
+                          {sortColumn === "meetingCount" ? (
+                            sortDirection === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
+                          ) : (
+                            <ArrowUpDown className="w-4 h-4 opacity-50" />
+                          )}
+                        </button>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {clientChannelStats && clientChannelStats.length > 0 ? (
-                      clientChannelStats.map((channel) => (
+                    {sortedClientChannelStats && sortedClientChannelStats.length > 0 ? (
+                      sortedClientChannelStats.map((channel) => (
                         <TableRow key={channel.channelId} className="border-slate-700 hover:bg-slate-700/50">
                           <TableCell className="text-slate-200">{channel.channelName}</TableCell>
                           <TableCell className="text-slate-200">{channel.messageCount}</TableCell>
@@ -312,11 +385,12 @@ export default function Home() {
                           <TableCell className="text-slate-200">
                             {channel.clientBusinessName || <span className="text-slate-500">-</span>}
                           </TableCell>
+                          <TableCell className="text-slate-200">{channel.meetingCount}</TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow className="border-slate-700">
-                        <TableCell colSpan={4} className="text-center text-slate-400 py-8">
+                        <TableCell colSpan={5} className="text-center text-slate-400 py-8">
                           No client activity in the selected time range
                         </TableCell>
                       </TableRow>
