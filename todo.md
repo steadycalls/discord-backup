@@ -324,3 +324,12 @@
 - [x] Display status progression with timestamps (Yet to Start → In Review → Approved)
 - [x] Add visual indicators for status transitions
 - [x] Test timeline with multiple status changes
+
+## A2P Scraper PowerShell Scripts
+- [x] Create main A2P scraper PowerShell script with Playwright automation
+- [x] Add credential management with secure storage
+- [x] Create installer script with prompts for configuration
+- [x] Set up Windows Task Scheduler for daily execution
+- [x] Configure auto-restart on system reboot
+- [x] Write comprehensive README with installation instructions
+- [x] Test scripts on Windows machine
