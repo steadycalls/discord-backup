@@ -799,6 +799,12 @@ When answering questions:
       const result = await sendDailyA2pSummary();
       return result;
     }),
+    statusHistory: protectedProcedure
+      .input(z.object({ locationId: z.string() }))
+      .query(async ({ input }) => {
+        const { getA2pStatusHistory } = await import("./db");
+        return await getA2pStatusHistory(input.locationId);
+      }),
   }),
 });
 

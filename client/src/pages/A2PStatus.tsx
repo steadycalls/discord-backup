@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { APP_TITLE, getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, ArrowDown, ArrowUp, ExternalLink, Loader2, Search, Filter } from "lucide-react";
+import { ArrowLeft, ArrowDown, ArrowUp, ExternalLink, Loader2, Search, Filter, ChevronDown, ChevronRight, Clock } from "lucide-react";
+import { StatusTimeline } from "@/components/StatusTimeline";
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import {
@@ -25,6 +26,7 @@ export default function A2PStatus() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortColumn, setSortColumn] = useState<SortColumn>("checkedAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const { data: a2pStatuses, isLoading } = trpc.a2p.latestStatus.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -246,11 +248,35 @@ export default function A2PStatus() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAndSortedData.map((status) => (
-                      <TableRow key={status.id} className="border-slate-700 hover:bg-slate-700/50">
-                        <TableCell className="text-slate-200 font-medium">
-                          {status.locationName}
-                        </TableCell>
+                    {filteredAndSortedData.map((status) => {
+                      const isExpanded = expandedRows.has(status.id);
+                      const toggleExpand = () => {
+                        const newExpanded = new Set(expandedRows);
+                        if (isExpanded) {
+                          newExpanded.delete(status.id);
+                        } else {
+                          newExpanded.add(status.id);
+                        }
+                        setExpandedRows(newExpanded);
+                      };
+                      
+                      return (
+                        <>
+                          <TableRow key={status.id} className="border-slate-700 hover:bg-slate-700/50">
+                            <TableCell className="text-slate-200 font-medium">
+                              <button
+                                onClick={toggleExpand}
+                                className="flex items-center gap-2 hover:text-white transition-colors"
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="w-4 h-4" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4" />
+                                )}
+                                {status.locationName}
+                              </button>
+                            </TableCell>
+
                         <TableCell className="text-slate-200">
                           {status.companyName || <span className="text-slate-500">-</span>}
                         </TableCell>
@@ -280,8 +306,17 @@ export default function A2PStatus() {
                             </a>
                           </Button>
                         </TableCell>
-                      </TableRow>
-                    ))}
+                          </TableRow>
+                          {isExpanded && (
+                            <TableRow className="border-slate-700">
+                              <TableCell colSpan={6} className="p-0">
+                                <StatusTimeline locationId={status.locationId} />
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

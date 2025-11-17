@@ -315,4 +315,12 @@
 - [x] Implement daily summary notification for non-approved campaigns
 - [x] Filter notifications to only include campaigns tagged as "client"
 - [x] Test A2P page with sample data
-- [ ] Push changes to GitHub
+- [x] Push changes to GitHub
+
+## A2P Timeline Enhancement
+- [x] Modify database to track full status history (not just latest)
+- [x] Create backend endpoint to retrieve status history per location
+- [x] Build expandable timeline UI component for each campaign row
+- [x] Display status progression with timestamps (Yet to Start → In Review → Approved)
+- [x] Add visual indicators for status transitions
+- [x] Test timeline with multiple status changes

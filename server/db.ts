@@ -1204,3 +1204,31 @@ export async function sendDailyA2pSummary() {
 
   return { sent, count: nonApproved.length };
 }
+
+
+export async function getA2pStatusHistory(locationId: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { a2pStatus, ghlLocations } = await import("../drizzle/schema");
+  const { desc } = await import("drizzle-orm");
+  
+  const history = await db
+    .select({
+      id: a2pStatus.id,
+      locationId: a2pStatus.locationId,
+      locationName: ghlLocations.name,
+      companyName: ghlLocations.companyName,
+      checkedAt: a2pStatus.checkedAt,
+      brandStatus: a2pStatus.brandStatus,
+      campaignStatus: a2pStatus.campaignStatus,
+      sourceUrl: a2pStatus.sourceUrl,
+      notes: a2pStatus.notes,
+    })
+    .from(a2pStatus)
+    .innerJoin(ghlLocations, eq(a2pStatus.locationId, ghlLocations.id))
+    .where(eq(a2pStatus.locationId, locationId))
+    .orderBy(desc(a2pStatus.checkedAt));
+
+  return history;
+}
