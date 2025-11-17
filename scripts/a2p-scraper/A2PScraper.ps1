@@ -259,13 +259,46 @@ function Send-ToAPI {
     Write-Log "Uploading data to API..."
     
     try {
-        $url = "$($config.apiUrl)/api/trpc/a2p.import"
-        $body = @{ campaigns = $data } | ConvertTo-Json -Depth 10
+        $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+        $uploadedCount = 0
+        $failedCount = 0
         
-        $response = Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
+        foreach ($campaign in $data) {
+            try {
+                # First, upsert the location
+                $locationUrl = "$($config.apiUrl)/api/trpc/a2p.upsertLocation"
+                $locationBody = @{
+                    id = $campaign.locationId
+                    name = $campaign.locationName
+                    companyName = $campaign.locationName
+                    tags = ""
+                } | ConvertTo-Json -Depth 10
+                
+                $locationResponse = Invoke-RestMethod -Uri $locationUrl -Method Post -Body $locationBody -ContentType "application/json" -ErrorAction Stop
+                
+                # Then, insert the status
+                $statusUrl = "$($config.apiUrl)/api/trpc/a2p.importStatus"
+                $statusBody = @{
+                    locationId = $campaign.locationId
+                    checkedAt = $timestamp
+                    brandStatus = $campaign.brandStatus
+                    campaignStatus = $campaign.campaignStatus
+                    sourceUrl = $campaign.wizardUrl
+                    notes = "Automated scrape from PowerShell script"
+                } | ConvertTo-Json -Depth 10
+                
+                $statusResponse = Invoke-RestMethod -Uri $statusUrl -Method Post -Body $statusBody -ContentType "application/json" -ErrorAction Stop
+                
+                $uploadedCount++
+                Write-Log "  Uploaded: $($campaign.locationName)"
+            } catch {
+                $failedCount++
+                Write-Log "  Failed to upload $($campaign.locationName): $_" "WARN"
+            }
+        }
         
-        Write-Log "Data uploaded successfully" "SUCCESS"
-        return $true
+        Write-Log "Upload complete: $uploadedCount succeeded, $failedCount failed" "SUCCESS"
+        return ($uploadedCount -gt 0)
     } catch {
         Write-Log "Failed to upload data: $_" "ERROR"
         return $false

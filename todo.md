@@ -349,3 +349,13 @@
 - [x] Update README with new installation instructions
 - [ ] Test Selenium-based scraper
 - [x] Push updated scripts to GitHub
+
+## A2P Scraper API Upload Feature
+- [x] Review current A2P scraper data structure
+- [x] Add data formatting function to A2PScraper.ps1
+- [x] Add API upload function with authentication to A2PScraper.ps1
+- [x] Create backend API endpoint to receive A2P data uploads (already exists)
+- [x] Add error handling for upload failures
+- [ ] Test API upload with sample data
+- [x] Update README with API upload documentation
+- [ ] Push changes to GitHub

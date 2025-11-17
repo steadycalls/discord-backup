@@ -5,6 +5,7 @@ Automated PowerShell script that scrapes A2P (Application-to-Person) campaign st
 ## Features
 
 - **Automated Scraping**: Uses Selenium WebDriver to navigate GoHighLevel and extract A2P status
+- **Automatic Upload**: Formats and uploads scraped data to Logic Inbound Systems Manager API
 - **Daily Execution**: Runs automatically every day via Windows Task Scheduler
 - **Auto-Restart**: Restarts on system reboot to ensure continuous monitoring
 - **Retry Logic**: Automatically retries failed scrapes up to 3 times
@@ -142,6 +143,30 @@ To monitor logs in real-time:
 ```powershell
 Get-Content "C:\Scripts\a2p-scraper\scraper.log" -Wait
 ```
+
+### How Data Upload Works
+
+After successfully scraping A2P status from GoHighLevel, the script automatically:
+
+1. **Formats the data** for each location:
+   - Location ID and name
+   - Brand approval status (e.g., "Approved", "In Review", "Yet to Start")
+   - Campaign approval status
+   - Direct link to GHL A2P Wizard page
+   - Timestamp of the check
+
+2. **Uploads to Logic Inbound Systems Manager**:
+   - First creates/updates the location record via `/api/trpc/a2p.upsertLocation`
+   - Then records the status snapshot via `/api/trpc/a2p.importStatus`
+   - Each campaign is uploaded individually with error handling
+   - Failed uploads are logged but don't stop the process
+
+3. **Provides detailed feedback**:
+   - Logs each successful upload: `Uploaded: [Location Name]`
+   - Logs any failures: `Failed to upload [Location Name]: [Error]`
+   - Summary at end: `Upload complete: X succeeded, Y failed`
+
+**View uploaded data**: Log into https://systems.logicinbound.com and navigate to the A2P Status page to see all scraped campaigns with their status history.
 
 ### Task Scheduler Management
 
