@@ -115,6 +115,49 @@ async function startServer() {
       res.status(500).json({ success: false, error: error.message });
     }
   });
+  
+  // A2P Scraper webhook endpoint (for PowerShell script)
+  app.post("/api/webhooks/a2p", async (req, res) => {
+    try {
+      const payload = req.body;
+      const { upsertGhlLocation, insertA2pStatus } = await import("../db");
+      
+      // Validate required fields
+      if (!payload.locationId || !payload.locationName) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Missing required fields: locationId, locationName" 
+        });
+      }
+      
+      // First, upsert the location
+      await upsertGhlLocation({
+        id: payload.locationId,
+        name: payload.locationName,
+        companyName: payload.companyName || payload.locationName,
+        tags: payload.tags || "",
+      });
+      
+      // Then, insert the status
+      await insertA2pStatus({
+        locationId: payload.locationId,
+        checkedAt: payload.checkedAt ? new Date(payload.checkedAt) : new Date(),
+        brandStatus: payload.brandStatus || "Unknown",
+        campaignStatus: payload.campaignStatus || "Unknown",
+        sourceUrl: payload.sourceUrl || "",
+        notes: payload.notes || "Automated scrape from PowerShell script",
+      });
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "A2P status data received and stored" 
+      });
+    } catch (error: any) {
+      console.error("A2P webhook error:", error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+  
   // tRPC API
   app.use(
     "/api/trpc",

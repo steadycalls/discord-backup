@@ -156,8 +156,8 @@ After successfully scraping A2P status from GoHighLevel, the script automaticall
    - Timestamp of the check
 
 2. **Uploads to Logic Inbound Systems Manager**:
-   - First creates/updates the location record via `/api/trpc/a2p.upsertLocation`
-   - Then records the status snapshot via `/api/trpc/a2p.importStatus`
+   - Sends data to `/api/webhooks/a2p` REST endpoint
+   - Creates/updates location and records status in a single request
    - Each campaign is uploaded individually with error handling
    - Failed uploads are logged but don't stop the process
 

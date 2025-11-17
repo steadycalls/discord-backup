@@ -263,23 +263,16 @@ function Send-ToAPI {
         $uploadedCount = 0
         $failedCount = 0
         
+        $webhookUrl = "$($config.apiUrl)/api/webhooks/a2p"
+        
         foreach ($campaign in $data) {
             try {
-                # First, upsert the location
-                $locationUrl = "$($config.apiUrl)/api/trpc/a2p.upsertLocation"
-                $locationBody = @{
-                    id = $campaign.locationId
-                    name = $campaign.locationName
+                # Upload location and status in a single request
+                $body = @{
+                    locationId = $campaign.locationId
+                    locationName = $campaign.locationName
                     companyName = $campaign.locationName
                     tags = ""
-                } | ConvertTo-Json -Depth 10
-                
-                $locationResponse = Invoke-RestMethod -Uri $locationUrl -Method Post -Body $locationBody -ContentType "application/json" -ErrorAction Stop
-                
-                # Then, insert the status
-                $statusUrl = "$($config.apiUrl)/api/trpc/a2p.importStatus"
-                $statusBody = @{
-                    locationId = $campaign.locationId
                     checkedAt = $timestamp
                     brandStatus = $campaign.brandStatus
                     campaignStatus = $campaign.campaignStatus
@@ -287,7 +280,7 @@ function Send-ToAPI {
                     notes = "Automated scrape from PowerShell script"
                 } | ConvertTo-Json -Depth 10
                 
-                $statusResponse = Invoke-RestMethod -Uri $statusUrl -Method Post -Body $statusBody -ContentType "application/json" -ErrorAction Stop
+                $response = Invoke-RestMethod -Uri $webhookUrl -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
                 
                 $uploadedCount++
                 Write-Log "  Uploaded: $($campaign.locationName)"
