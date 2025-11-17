@@ -55,14 +55,21 @@ if ((Get-PSRepository -Name PSGallery).InstallationPolicy -ne 'Trusted') {
     Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
 }
 
-Write-Host "  Installing Playwright module (this may take a few minutes)..."
-if (-not (Get-Module -ListAvailable -Name Playwright)) {
-    Install-Module -Name Playwright -Force -Scope CurrentUser -AllowClobber
+Write-Host "  Installing Selenium module (this may take a few minutes)..."
+if (-not (Get-Module -ListAvailable -Name Selenium)) {
+    Install-Module -Name Selenium -Force -Scope CurrentUser -AllowClobber
 }
 
-Write-Host "  Installing Chromium browser..."
-Import-Module Playwright
-Install-PlaywrightBrowser -Chromium
+Write-Host "  Checking for Chrome/Edge browser..."
+$chromeExists = Test-Path "C:\Program Files\Google\Chrome\Application\chrome.exe"
+$edgeExists = Test-Path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+
+if ($chromeExists -or $edgeExists) {
+    Write-Host "  OK: Browser found" -ForegroundColor Green
+} else {
+    Write-Host "  WARN: Chrome or Edge not found. Please install Google Chrome." -ForegroundColor Yellow
+    Write-Host "  Download: https://www.google.com/chrome/" -ForegroundColor Yellow
+}
 
 Write-Host "  OK: Dependencies installed" -ForegroundColor Green
 Write-Host ""

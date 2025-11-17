@@ -1,352 +1,315 @@
+#Requires -Version 7.0
+
 <#
 .SYNOPSIS
-    GoHighLevel A2P Status Scraper
+    A2P Campaign Status Scraper for GoHighLevel using Selenium
 .DESCRIPTION
     Automatically scrapes A2P campaign status from GoHighLevel and uploads to Logic Inbound Systems Manager
-.NOTES
-    Requires: PowerShell 7+, Playwright for PowerShell
+.PARAMETER Test
+    Run in test mode without uploading data
+.PARAMETER Setup
+    Reconfigure credentials and settings
 #>
 
 param(
-    [switch]$Setup,
-    [switch]$Test
+    [switch]$Test,
+    [switch]$Setup
 )
 
-# Script configuration
+# Configuration
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = Join-Path $ScriptDir "config.json"
 $LogFile = Join-Path $ScriptDir "scraper.log"
-$MaxLogSizeMB = 10
+$ScreenshotDir = Join-Path $ScriptDir "screenshots"
+$MaxLogSize = 10MB
+
+# Ensure screenshot directory exists
+if (-not (Test-Path $ScreenshotDir)) {
+    New-Item -ItemType Directory -Path $ScreenshotDir | Out-Null
+}
 
 # Logging function
 function Write-Log {
-    param(
-        [string]$Message,
-        [string]$Level = "INFO"
-    )
-    
+    param([string]$Message, [string]$Level = "INFO")
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $logMessage = "[$timestamp] [$Level] $Message"
+    Add-Content -Path $LogFile -Value $logMessage
     
-    # Console output
     switch ($Level) {
         "ERROR" { Write-Host $logMessage -ForegroundColor Red }
         "WARN"  { Write-Host $logMessage -ForegroundColor Yellow }
         "SUCCESS" { Write-Host $logMessage -ForegroundColor Green }
         default { Write-Host $logMessage }
     }
+}
+
+# Rotate log if too large
+if ((Test-Path $LogFile) -and ((Get-Item $LogFile).Length -gt $MaxLogSize)) {
+    $backupLog = $LogFile -replace '\.log$', "_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+    Move-Item $LogFile $backupLog
+    Write-Log "Log rotated to $backupLog"
+}
+
+# Load or create configuration
+function Get-Configuration {
+    if (Test-Path $ConfigFile) {
+        return Get-Content $ConfigFile | ConvertFrom-Json
+    }
+    return $null
+}
+
+function Save-Configuration {
+    param($config)
+    $config | ConvertTo-Json | Set-Content $ConfigFile
+    Write-Log "Configuration saved"
+}
+
+# Setup wizard
+if ($Setup -or -not (Test-Path $ConfigFile)) {
+    Write-Host "`n========================================" -ForegroundColor Cyan
+    Write-Host "  A2P Scraper Configuration Setup" -ForegroundColor Cyan
+    Write-Host "========================================`n" -ForegroundColor Cyan
     
-    # File output
-    Add-Content -Path $LogFile -Value $logMessage
+    $config = @{}
+    $config.apiUrl = Read-Host "Enter API URL (e.g., https://systems.logicinbound.com)"
+    $config.ghlEmail = Read-Host "Enter GoHighLevel email"
+    $config.ghlPassword = Read-Host "Enter GoHighLevel password" -AsSecureString | ConvertFrom-SecureString
+    $config.agencyUrl = Read-Host "Enter Agency URL (e.g., https://app.gohighlevel.com)"
+    $config.headless = (Read-Host "Run browser in headless mode? (Y/N)") -eq 'Y'
+    $config.screenshotOnError = (Read-Host "Take screenshots on error? (Y/N)") -eq 'Y'
+    $config.maxRetries = [int](Read-Host "Max retries on failure (default: 3)")
     
-    # Rotate log if too large
-    if ((Get-Item $LogFile -ErrorAction SilentlyContinue).Length -gt ($MaxLogSizeMB * 1MB)) {
-        $archiveLog = Join-Path $ScriptDir "scraper_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-        Move-Item $LogFile $archiveLog
-        Write-Log "Log rotated to $archiveLog"
+    Save-Configuration $config
+    Write-Host "`nConfiguration saved successfully!`n" -ForegroundColor Green
+    
+    if (-not $Setup) {
+        $runNow = Read-Host "Run scraper now? (Y/N)"
+        if ($runNow -ne 'Y') {
+            exit 0
+        }
+    } else {
+        exit 0
     }
 }
 
 # Load configuration
-function Get-Config {
-    if (-not (Test-Path $ConfigFile)) {
-        Write-Log "Configuration file not found. Run with -Setup flag." "ERROR"
-        exit 1
-    }
-    
-    try {
-        $config = Get-Content $ConfigFile | ConvertFrom-Json
-        return $config
-    }
-    catch {
-        Write-Log "Failed to load configuration: $_" "ERROR"
-        exit 1
-    }
+$config = Get-Configuration
+if (-not $config) {
+    Write-Log "No configuration found. Run with -Setup parameter." "ERROR"
+    exit 1
 }
 
-# Save configuration
-function Save-Config {
-    param($Config)
-    
+Write-Log "========== A2P Scraper Started =========="
+Write-Log "Test mode: $Test"
+
+# Check Selenium module
+if (-not (Get-Module -ListAvailable -Name Selenium)) {
+    Write-Log "Selenium module not found. Installing..." "WARN"
     try {
-        $Config | ConvertTo-Json -Depth 10 | Set-Content $ConfigFile
-        Write-Log "Configuration saved successfully" "SUCCESS"
-    }
-    catch {
-        Write-Log "Failed to save configuration: $_" "ERROR"
+        Install-Module -Name Selenium -Force -Scope CurrentUser -ErrorAction Stop
+        Write-Log "Selenium module installed successfully" "SUCCESS"
+    } catch {
+        Write-Log "Failed to install Selenium module: $_" "ERROR"
         exit 1
     }
 }
 
-# Setup wizard
-function Start-Setup {
-    Write-Host "`n=== GoHighLevel A2P Scraper Setup ===" -ForegroundColor Cyan
-    Write-Host "This wizard will configure the scraper for your environment.`n"
-    
-    $config = @{}
-    
-    # API Endpoint
-    Write-Host "Enter your Logic Inbound Systems Manager API URL:" -ForegroundColor Yellow
-    Write-Host "Example: https://systems.logicinbound.com" -ForegroundColor Gray
-    $config.ApiBaseUrl = Read-Host "API URL"
-    
-    # GHL Credentials
-    Write-Host "`nEnter your GoHighLevel credentials:" -ForegroundColor Yellow
-    $config.GhlEmail = Read-Host "GHL Email"
-    $ghlPassword = Read-Host "GHL Password" -AsSecureString
-    $config.GhlPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto(
-        [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ghlPassword)
-    )
-    
-    # GHL Agency URL
-    Write-Host "`nEnter your GoHighLevel agency URL:" -ForegroundColor Yellow
-    Write-Host "Example: https://app.gohighlevel.com" -ForegroundColor Gray
-    $config.GhlAgencyUrl = Read-Host "Agency URL"
-    
-    # Scraper options
-    Write-Host "`nScraper Configuration:" -ForegroundColor Yellow
-    $config.HeadlessMode = (Read-Host "Run browser in headless mode? (Y/N)") -eq "Y"
-    $config.ScreenshotOnError = (Read-Host "Take screenshots on errors? (Y/N)") -eq "Y"
-    $config.MaxRetries = [int](Read-Host "Max retry attempts (default: 3)")
-    if ($config.MaxRetries -eq 0) { $config.MaxRetries = 3 }
-    
-    # Save configuration
-    Save-Config $config
-    
-    Write-Host "`n=== Setup Complete ===" -ForegroundColor Green
-    Write-Host "Configuration saved to: $ConfigFile"
-    Write-Host "Run the script without -Setup flag to start scraping.`n"
-}
+Import-Module Selenium
 
-# Install Playwright if needed
-function Install-Playwright {
-    Write-Log "Checking Playwright installation..."
+# Decrypt password
+$securePassword = $config.ghlPassword | ConvertTo-SecureString
+$BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+$plainPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+
+# Initialize Selenium WebDriver
+function Initialize-WebDriver {
+    Write-Log "Initializing Chrome WebDriver..."
     
     try {
-        $playwrightModule = Get-Module -ListAvailable -Name Playwright
-        if (-not $playwrightModule) {
-            Write-Log "Installing Playwright module..."
-            Install-Module -Name Playwright -Force -Scope CurrentUser
+        $options = New-Object OpenQA.Selenium.Chrome.ChromeOptions
+        
+        if ($config.headless) {
+            $options.AddArgument("--headless=new")
         }
         
-        Import-Module Playwright
+        $options.AddArgument("--no-sandbox")
+        $options.AddArgument("--disable-dev-shm-usage")
+        $options.AddArgument("--disable-gpu")
+        $options.AddArgument("--window-size=1920,1080")
+        $options.AddArgument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         
-        # Install browsers
-        Write-Log "Installing Playwright browsers..."
-        Install-PlaywrightBrowser -Chromium
+        $driver = New-Object OpenQA.Selenium.Chrome.ChromeDriver($options)
+        $driver.Manage().Timeouts().ImplicitWait = [TimeSpan]::FromSeconds(10)
+        $driver.Manage().Timeouts().PageLoad = [TimeSpan]::FromSeconds(30)
         
-        Write-Log "Playwright installation complete" "SUCCESS"
-    }
-    catch {
-        Write-Log "Failed to install Playwright: $_" "ERROR"
-        Write-Log "Please install manually: Install-Module Playwright; Install-PlaywrightBrowser -Chromium" "ERROR"
-        exit 1
+        Write-Log "WebDriver initialized successfully" "SUCCESS"
+        return $driver
+    } catch {
+        Write-Log "Failed to initialize WebDriver: $_" "ERROR"
+        throw
     }
 }
 
-# Scrape A2P status from GHL
+# Take screenshot on error
+function Save-ErrorScreenshot {
+    param($driver, $errorContext)
+    
+    if (-not $config.screenshotOnError) { return }
+    
+    try {
+        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $filename = "error_${errorContext}_${timestamp}.png"
+        $filepath = Join-Path $ScreenshotDir $filename
+        
+        $screenshot = $driver.GetScreenshot()
+        $screenshot.SaveAsFile($filepath)
+        
+        Write-Log "Screenshot saved: $filepath" "WARN"
+    } catch {
+        Write-Log "Failed to save screenshot: $_" "ERROR"
+    }
+}
+
+# Scrape A2P status
 function Get-A2PStatus {
-    param($Config)
+    param($driver)
     
-    Write-Log "Starting A2P status scrape..."
+    Write-Log "Navigating to GoHighLevel..."
+    $driver.Navigate().GoToUrl($config.agencyUrl)
+    Start-Sleep -Seconds 3
+    
+    # Login
+    Write-Log "Logging in..."
+    try {
+        $emailField = $driver.FindElement([OpenQA.Selenium.By]::CssSelector("input[type='email'], input[name='email']"))
+        $emailField.SendKeys($config.ghlEmail)
+        
+        $passwordField = $driver.FindElement([OpenQA.Selenium.By]::CssSelector("input[type='password'], input[name='password']"))
+        $passwordField.SendKeys($plainPassword)
+        
+        $loginButton = $driver.FindElement([OpenQA.Selenium.By]::CssSelector("button[type='submit']"))
+        $loginButton.Click()
+        
+        Start-Sleep -Seconds 5
+        Write-Log "Login successful" "SUCCESS"
+    } catch {
+        Write-Log "Login failed: $_" "ERROR"
+        Save-ErrorScreenshot $driver "login"
+        throw
+    }
+    
+    # Navigate to A2P section
+    Write-Log "Navigating to A2P campaigns..."
+    try {
+        # This selector will need to be updated based on actual GHL UI
+        $driver.Navigate().GoToUrl("$($config.agencyUrl)/settings/phone/a2p")
+        Start-Sleep -Seconds 5
+    } catch {
+        Write-Log "Failed to navigate to A2P section: $_" "ERROR"
+        Save-ErrorScreenshot $driver "navigation"
+        throw
+    }
+    
+    # Scrape campaign data
+    Write-Log "Scraping campaign data..."
+    $campaigns = @()
     
     try {
-        Import-Module Playwright
+        # Find all location rows (selectors need to be updated based on actual GHL UI)
+        $rows = $driver.FindElements([OpenQA.Selenium.By]::CssSelector("tr.location-row, .campaign-item"))
         
-        $playwright = New-PlaywrightAsync
-        $browser = $playwright.Chromium.LaunchAsync(@{
-            Headless = $Config.HeadlessMode
-        }).GetAwaiter().GetResult()
-        
-        $context = $browser.NewContextAsync().GetAwaiter().GetResult()
-        $page = $context.NewPageAsync().GetAwaiter().GetResult()
-        
-        # Navigate to GHL login
-        Write-Log "Navigating to GoHighLevel login..."
-        $page.GotoAsync($Config.GhlAgencyUrl).GetAwaiter().GetResult()
-        
-        # Login
-        Write-Log "Logging in to GoHighLevel..."
-        $page.FillAsync("input[type='email']", $Config.GhlEmail).GetAwaiter().GetResult()
-        $page.FillAsync("input[type='password']", $Config.GhlPassword).GetAwaiter().GetResult()
-        $page.ClickAsync("button[type='submit']").GetAwaiter().GetResult()
-        
-        # Wait for navigation
-        Start-Sleep -Seconds 5
-        
-        # Navigate to locations/subaccounts
-        Write-Log "Fetching locations..."
-        $page.GotoAsync("$($Config.GhlAgencyUrl)/locations").GetAwaiter().GetResult()
-        Start-Sleep -Seconds 3
-        
-        # Scrape location data
-        $locations = @()
-        $locationElements = $page.QuerySelectorAllAsync(".location-card").GetAwaiter().GetResult()
-        
-        foreach ($element in $locationElements) {
+        foreach ($row in $rows) {
             try {
-                $locationId = $element.GetAttributeAsync("data-location-id").GetAwaiter().GetResult()
-                $locationName = $element.QuerySelectorAsync(".location-name").GetAwaiter().GetResult().InnerTextAsync().GetAwaiter().GetResult()
-                
-                # Navigate to A2P page for this location
-                $a2pUrl = "$($Config.GhlAgencyUrl)/location/$locationId/settings/phone/a2p"
-                $page.GotoAsync($a2pUrl).GetAwaiter().GetResult()
-                Start-Sleep -Seconds 2
-                
-                # Extract A2P status
-                $brandStatus = "UNKNOWN"
-                $campaignStatus = "UNKNOWN"
-                
-                try {
-                    $brandStatusElement = $page.QuerySelectorAsync("[data-testid='brand-status']").GetAwaiter().GetResult()
-                    if ($brandStatusElement) {
-                        $brandStatus = $brandStatusElement.InnerTextAsync().GetAwaiter().GetResult()
-                    }
-                }
-                catch { }
-                
-                try {
-                    $campaignStatusElement = $page.QuerySelectorAsync("[data-testid='campaign-status']").GetAwaiter().GetResult()
-                    if ($campaignStatusElement) {
-                        $campaignStatus = $campaignStatusElement.InnerTextAsync().GetAwaiter().GetResult()
-                    }
-                }
-                catch { }
-                
-                $locations += @{
-                    locationId = $locationId
-                    locationName = $locationName
-                    brandStatus = $brandStatus
-                    campaignStatus = $campaignStatus
-                    sourceUrl = $a2pUrl
-                    checkedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+                $campaign = @{
+                    locationId = $row.FindElement([OpenQA.Selenium.By]::CssSelector(".location-id")).Text
+                    locationName = $row.FindElement([OpenQA.Selenium.By]::CssSelector(".location-name")).Text
+                    brandStatus = $row.FindElement([OpenQA.Selenium.By]::CssSelector(".brand-status")).Text
+                    campaignStatus = $row.FindElement([OpenQA.Selenium.By]::CssSelector(".campaign-status")).Text
+                    submittedDate = $row.FindElement([OpenQA.Selenium.By]::CssSelector(".submitted-date")).Text
+                    wizardUrl = $row.FindElement([OpenQA.Selenium.By]::CssSelector("a.wizard-link")).GetAttribute("href")
                 }
                 
-                Write-Log "Scraped: $locationName - Brand: $brandStatus, Campaign: $campaignStatus"
-            }
-            catch {
-                Write-Log "Error scraping location: $_" "WARN"
+                $campaigns += $campaign
+            } catch {
+                Write-Log "Failed to parse row: $_" "WARN"
             }
         }
         
-        # Cleanup
-        $browser.CloseAsync().GetAwaiter().GetResult()
-        
-        Write-Log "Scraping complete. Found $($locations.Count) locations" "SUCCESS"
-        return $locations
-    }
-    catch {
-        Write-Log "Scraping failed: $_" "ERROR"
-        
-        if ($Config.ScreenshotOnError) {
-            $screenshotPath = Join-Path $ScriptDir "error_$(Get-Date -Format 'yyyyMMdd_HHmmss').png"
-            try {
-                $page.ScreenshotAsync(@{ Path = $screenshotPath }).GetAwaiter().GetResult()
-                Write-Log "Error screenshot saved to: $screenshotPath" "WARN"
-            }
-            catch { }
-        }
-        
-        return @()
+        Write-Log "Scraped $($campaigns.Count) campaigns" "SUCCESS"
+        return $campaigns
+    } catch {
+        Write-Log "Failed to scrape campaign data: $_" "ERROR"
+        Save-ErrorScreenshot $driver "scraping"
+        throw
     }
 }
 
-# Upload data to API
-function Send-A2PData {
-    param(
-        $Config,
-        $Locations
-    )
+# Upload to API
+function Send-ToAPI {
+    param($data)
     
-    if ($Locations.Count -eq 0) {
-        Write-Log "No data to upload" "WARN"
-        return
+    if ($Test) {
+        Write-Log "TEST MODE: Would upload $($data.Count) campaigns" "WARN"
+        $data | ForEach-Object {
+            Write-Log "  - $($_.locationName): Brand=$($_.brandStatus), Campaign=$($_.campaignStatus)"
+        }
+        return $true
     }
     
     Write-Log "Uploading data to API..."
     
-    $apiUrl = "$($Config.ApiBaseUrl)/api/trpc/a2p.importStatus"
-    
     try {
-        foreach ($location in $Locations) {
-            $body = @{
-                location = @{
-                    id = $location.locationId
-                    name = $location.locationName
-                }
-                status = @{
-                    brandStatus = $location.brandStatus
-                    campaignStatus = $location.campaignStatus
-                    sourceUrl = $location.sourceUrl
-                    checkedAt = $location.checkedAt
-                }
-            } | ConvertTo-Json -Depth 10
-            
-            $response = Invoke-RestMethod -Uri $apiUrl -Method Post -Body $body -ContentType "application/json"
-            Write-Log "Uploaded: $($location.locationName)"
-        }
+        $url = "$($config.apiUrl)/api/trpc/a2p.import"
+        $body = @{ campaigns = $data } | ConvertTo-Json -Depth 10
         
-        Write-Log "Upload complete. $($Locations.Count) locations updated" "SUCCESS"
-    }
-    catch {
-        Write-Log "Upload failed: $_" "ERROR"
-        Write-Log "Response: $($_.Exception.Response)" "ERROR"
+        $response = Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
+        
+        Write-Log "Data uploaded successfully" "SUCCESS"
+        return $true
+    } catch {
+        Write-Log "Failed to upload data: $_" "ERROR"
+        return $false
     }
 }
 
-# Main execution
-function Start-Scraper {
-    Write-Log "=== A2P Scraper Started ==="
+# Main execution with retry logic
+$attempt = 1
+$success = $false
+
+while ($attempt -le $config.maxRetries -and -not $success) {
+    Write-Log "Attempt $attempt of $($config.maxRetries)"
     
-    $config = Get-Config
-    
-    # Install Playwright if needed
-    if (-not (Get-Module -ListAvailable -Name Playwright)) {
-        Install-Playwright
-    }
-    
-    # Scrape data
-    $retryCount = 0
-    $locations = @()
-    
-    while ($retryCount -lt $config.MaxRetries) {
-        $locations = Get-A2PStatus -Config $config
+    $driver = $null
+    try {
+        $driver = Initialize-WebDriver
+        $campaigns = Get-A2PStatus $driver
+        $success = Send-ToAPI $campaigns
         
-        if ($locations.Count -gt 0) {
-            break
+        if ($success) {
+            Write-Log "Scraper completed successfully" "SUCCESS"
         }
+    } catch {
+        Write-Log "Attempt $attempt failed: $_" "ERROR"
         
-        $retryCount++
-        if ($retryCount -lt $config.MaxRetries) {
-            Write-Log "Retry $retryCount of $($config.MaxRetries)..." "WARN"
-            Start-Sleep -Seconds 30
+        if ($attempt -lt $config.maxRetries) {
+            $waitTime = [Math]::Pow(2, $attempt) * 5
+            Write-Log "Waiting $waitTime seconds before retry..."
+            Start-Sleep -Seconds $waitTime
+        }
+    } finally {
+        if ($driver) {
+            $driver.Quit()
+            $driver.Dispose()
         }
     }
     
-    if ($locations.Count -eq 0) {
-        Write-Log "Failed to scrape data after $($config.MaxRetries) attempts" "ERROR"
-        exit 1
-    }
-    
-    # Upload data
-    Send-A2PData -Config $config -Locations $locations
-    
-    Write-Log "=== A2P Scraper Completed ===" "SUCCESS"
+    $attempt++
 }
 
-# Entry point
-if ($Setup) {
-    Start-Setup
+if (-not $success) {
+    Write-Log "Scraper failed after $($config.maxRetries) attempts" "ERROR"
+    exit 1
 }
-elseif ($Test) {
-    Write-Host "Testing configuration..." -ForegroundColor Cyan
-    $config = Get-Config
-    Write-Host "Configuration loaded successfully:" -ForegroundColor Green
-    Write-Host "  API URL: $($config.ApiBaseUrl)"
-    Write-Host "  GHL Email: $($config.GhlEmail)"
-    Write-Host "  Headless Mode: $($config.HeadlessMode)"
-    Write-Host "`nTest complete." -ForegroundColor Green
-}
-else {
-    Start-Scraper
-}
+
+Write-Log "========== A2P Scraper Finished =========="
+exit 0

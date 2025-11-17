@@ -4,7 +4,7 @@ Automated PowerShell script that scrapes A2P (Application-to-Person) campaign st
 
 ## Features
 
-- **Automated Scraping**: Uses Playwright to navigate GoHighLevel and extract A2P status
+- **Automated Scraping**: Uses Selenium WebDriver to navigate GoHighLevel and extract A2P status
 - **Daily Execution**: Runs automatically every day via Windows Task Scheduler
 - **Auto-Restart**: Restarts on system reboot to ensure continuous monitoring
 - **Retry Logic**: Automatically retries failed scrapes up to 3 times
@@ -69,7 +69,8 @@ pwsh --version
 
 4. **Follow the installation wizard**:
    - The installer will check prerequisites
-   - Install Playwright and Chromium browser
+   - Install Selenium module
+   - Check for Chrome/Edge browser
    - Prompt for your configuration:
      * **API URL**: Your Logic Inbound Systems Manager URL (e.g., `https://systems.logicinbound.com`)
      * **GHL Email**: Your GoHighLevel login email
@@ -205,17 +206,21 @@ If the scraper fails to log in to GoHighLevel:
 
 3. **Check for 2FA**: If your GHL account has two-factor authentication enabled, you may need to disable it or use an app-specific password.
 
-### Playwright/Browser Issues
+### Selenium/Browser Issues
 
 If browser automation fails:
 
-1. **Reinstall Playwright browsers**:
+1. **Verify Chrome or Edge is installed**:
+   - Chrome: https://www.google.com/chrome/
+   - Edge: Pre-installed on Windows 10/11
+
+2. **Reinstall Selenium module**:
    ```powershell
-   Import-Module Playwright
-   Install-PlaywrightBrowser -Chromium -Force
+   Uninstall-Module -Name Selenium -Force
+   Install-Module -Name Selenium -Force -Scope CurrentUser
    ```
 
-2. **Run in non-headless mode** to see what's happening:
+3. **Run in non-headless mode** to see what's happening:
    - Reconfigure with `-Setup` flag
    - Set "Headless Mode" to `N`
    - Run scraper manually and observe browser behavior
@@ -255,11 +260,11 @@ Delete the scraper directory:
 Remove-Item "C:\Scripts\a2p-scraper" -Recurse -Force
 ```
 
-### Uninstall Playwright (Optional)
+### Uninstall Selenium (Optional)
 
-If you no longer need Playwright:
+If you no longer need Selenium:
 ```powershell
-Uninstall-Module -Name Playwright
+Uninstall-Module -Name Selenium
 ```
 
 ## File Structure
