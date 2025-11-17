@@ -115,15 +115,12 @@ function New-ScheduledTask {
     if ([string]::IsNullOrWhiteSpace($minute)) { $minute = 0 }
     
     # Create action
-    $action = New-ScheduledTaskAction `
-        -Execute "pwsh.exe" `
-        -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$ScraperScript`"" `
-        -WorkingDirectory $ScriptDir
+    $actionArgs = "-NoProfile -ExecutionPolicy Bypass -File `"$ScraperScript`""
+    $action = New-ScheduledTaskAction -Execute "pwsh.exe" -Argument $actionArgs -WorkingDirectory $ScriptDir
     
     # Create daily trigger
-    $dailyTrigger = New-ScheduledTaskTrigger `
-        -Daily `
-        -At ([DateTime]::Today.AddHours($hour).AddMinutes($minute))
+    $triggerTime = [DateTime]::Today.AddHours($hour).AddMinutes($minute)
+    $dailyTrigger = New-ScheduledTaskTrigger -Daily -At $triggerTime
     
     # Create startup trigger (run on system boot)
     $startupTrigger = New-ScheduledTaskTrigger -AtStartup
@@ -132,28 +129,34 @@ function New-ScheduledTask {
     $triggers = @($dailyTrigger, $startupTrigger)
     
     # Create settings
-    $settings = New-ScheduledTaskSettingsSet `
-        -AllowStartIfOnBatteries `
-        -DontStopIfGoingOnBatteries `
-        -StartWhenAvailable `
-        -RestartCount 3 `
-        -RestartInterval (New-TimeSpan -Minutes 5) `
-        -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+    $settingsParams = @{
+        AllowStartIfOnBatteries = $true
+        DontStopIfGoingOnBatteries = $true
+        StartWhenAvailable = $true
+        RestartCount = 3
+        RestartInterval = (New-TimeSpan -Minutes 5)
+        ExecutionTimeLimit = (New-TimeSpan -Hours 2)
+    }
+    $settings = New-ScheduledTaskSettingsSet @settingsParams
     
     # Create principal (run as current user)
-    $principal = New-ScheduledTaskPrincipal `
-        -UserId $env:USERNAME `
-        -LogonType Interactive `
-        -RunLevel Highest
+    $principalParams = @{
+        UserId = $env:USERNAME
+        LogonType = 'Interactive'
+        RunLevel = 'Highest'
+    }
+    $principal = New-ScheduledTaskPrincipal @principalParams
     
     # Register task
-    Register-ScheduledTask `
-        -TaskName $TaskName `
-        -Description $TaskDescription `
-        -Action $action `
-        -Trigger $triggers `
-        -Settings $settings `
-        -Principal $principal | Out-Null
+    $registerParams = @{
+        TaskName = $TaskName
+        Description = $TaskDescription
+        Action = $action
+        Trigger = $triggers
+        Settings = $settings
+        Principal = $principal
+    }
+    Register-ScheduledTask @registerParams | Out-Null
     
     Write-Host "  ✓ Scheduled task created" -ForegroundColor Green
     Write-Host "    - Daily execution: $($hour.ToString().PadLeft(2,'0')):$($minute.ToString().PadLeft(2,'0'))" -ForegroundColor Gray
@@ -215,7 +218,8 @@ function Show-Summary {
     Write-Host "  Run scraper:      pwsh -File `"$ScraperScript`""
     Write-Host "  Reconfigure:      pwsh -File `"$ScraperScript`" -Setup"
     Write-Host "  Test config:      pwsh -File `"$ScraperScript`" -Test"
-    Write-Host "  View logs:        Get-Content `"$(Join-Path $ScriptDir 'scraper.log')`" -Tail 50`n"
+    $logPath = Join-Path $ScriptDir 'scraper.log'
+    Write-Host "  View logs:        Get-Content `"$logPath`" -Tail 50`n"
     
     Write-Host "Task Scheduler Commands:" -ForegroundColor Cyan
     Write-Host "  Run now:          Start-ScheduledTask -TaskName '$TaskName'"

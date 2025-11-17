@@ -333,3 +333,8 @@
 - [x] Configure auto-restart on system reboot
 - [x] Write comprehensive README with installation instructions
 - [x] Test scripts on Windows machine
+
+## Fix A2P Scraper Install.ps1 Syntax
+- [x] Fix PowerShell syntax errors in Install.ps1
+- [ ] Test fixed script
+- [ ] Push updated script to GitHub
