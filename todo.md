@@ -340,5 +340,12 @@
 - [x] Push updated script to GitHub
 
 ## Fix Install.ps1 Variable Reference Error
-- [ ] Fix $hourStr:$minuteStr syntax error in Write-Host
-- [ ] Push fix to GitHub
+- [x] Fix $hourStr:$minuteStr syntax error in Write-Host
+- [x] Push fix to GitHub
+
+## Rewrite A2P Scraper to Use Selenium
+- [x] Rewrite A2PScraper.ps1 to use Selenium WebDriver instead of Playwright
+- [x] Update Install.ps1 to install Selenium module
+- [x] Update README with new installation instructions
+- [ ] Test Selenium-based scraper
+- [x] Push updated scripts to GitHub
