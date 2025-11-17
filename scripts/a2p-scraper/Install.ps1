@@ -114,7 +114,8 @@ Register-ScheduledTask -TaskName $TaskName -Description $TaskDescription -Action
 Write-Host "  OK: Scheduled task created" -ForegroundColor Green
 $hourStr = $hour.ToString().PadLeft(2,'0')
 $minuteStr = $minute.ToString().PadLeft(2,'0')
-Write-Host "    - Daily execution: $hourStr:$minuteStr" -ForegroundColor Gray
+$timeStr = "$hourStr" + ":" + "$minuteStr"
+Write-Host "    - Daily execution: $timeStr" -ForegroundColor Gray
 Write-Host "    - Runs on system startup" -ForegroundColor Gray
 Write-Host "    - Auto-restart on failure (3 attempts)" -ForegroundColor Gray
 Write-Host ""
