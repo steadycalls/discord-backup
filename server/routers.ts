@@ -738,6 +738,68 @@ When answering questions:
       return { triggered };
     }),
   }),
+
+  // A2P Campaign Monitoring
+  a2p: router({
+    locations: protectedProcedure.query(async () => {
+      const { getAllGhlLocations } = await import("./db");
+      return await getAllGhlLocations();
+    }),
+    latestStatus: protectedProcedure.query(async () => {
+      const { getLatestA2pStatus } = await import("./db");
+      return await getLatestA2pStatus();
+    }),
+    nonApproved: protectedProcedure
+      .input(z.object({ tagFilter: z.string().optional() }).optional())
+      .query(async ({ input }) => {
+        const { getNonApprovedA2pCampaigns } = await import("./db");
+        return await getNonApprovedA2pCampaigns(input?.tagFilter);
+      }),
+    importStatus: protectedProcedure
+      .input(z.object({
+        locationId: z.string(),
+        checkedAt: z.string(),
+        brandStatus: z.string(),
+        campaignStatus: z.string(),
+        sourceUrl: z.string(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { insertA2pStatus } = await import("./db");
+        await insertA2pStatus({
+          ...input,
+          checkedAt: new Date(input.checkedAt),
+        });
+        return { success: true };
+      }),
+    upsertLocation: protectedProcedure
+      .input(z.object({
+        id: z.string(),
+        name: z.string(),
+        companyName: z.string().optional(),
+        tags: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { upsertGhlLocation } = await import("./db");
+        await upsertGhlLocation(input);
+        return { success: true };
+      }),
+    updateLocationTags: protectedProcedure
+      .input(z.object({
+        locationId: z.string(),
+        tags: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const { updateGhlLocationTags } = await import("./db");
+        await updateGhlLocationTags(input.locationId, input.tags);
+        return { success: true };
+      }),
+    sendDailySummary: protectedProcedure.mutation(async () => {
+      const { sendDailyA2pSummary } = await import("./db");
+      const result = await sendDailyA2pSummary();
+      return result;
+    }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

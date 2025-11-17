@@ -1041,3 +1041,166 @@ export async function checkAndTriggerAlerts() {
   
   return triggered;
 }
+
+
+// ============================================================================
+// A2P (Application-to-Person) Campaign Monitoring
+// ============================================================================
+
+export async function upsertGhlLocation(location: {
+  id: string;
+  name: string;
+  companyName?: string;
+  tags?: string;
+}) {
+  const db = await getDb();
+  if (!db) return;
+
+  const { ghlLocations } = await import("../drizzle/schema");
+  
+  await db.insert(ghlLocations).values({
+    id: location.id,
+    name: location.name,
+    companyName: location.companyName || null,
+    tags: location.tags || null,
+    lastSeenAt: new Date(),
+  }).onDuplicateKeyUpdate({
+    set: {
+      name: location.name,
+      companyName: location.companyName || null,
+      tags: location.tags || null,
+      lastSeenAt: new Date(),
+    },
+  });
+}
+
+export async function getAllGhlLocations() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { ghlLocations } = await import("../drizzle/schema");
+  return await db.select().from(ghlLocations).orderBy(ghlLocations.name);
+}
+
+export async function insertA2pStatus(status: {
+  locationId: string;
+  checkedAt: Date;
+  brandStatus: string;
+  campaignStatus: string;
+  sourceUrl: string;
+  notes?: string;
+}) {
+  const db = await getDb();
+  if (!db) return;
+
+  const { a2pStatus } = await import("../drizzle/schema");
+  
+  await db.insert(a2pStatus).values({
+    locationId: status.locationId,
+    checkedAt: status.checkedAt,
+    brandStatus: status.brandStatus,
+    campaignStatus: status.campaignStatus,
+    sourceUrl: status.sourceUrl,
+    notes: status.notes || null,
+  });
+}
+
+export async function getLatestA2pStatus() {
+  const db = await getDb();
+  if (!db) return [];
+
+  const { a2pStatus, ghlLocations } = await import("../drizzle/schema");
+  
+  // Get the latest status for each location
+  const latestStatuses = await db
+    .select({
+      id: a2pStatus.id,
+      locationId: a2pStatus.locationId,
+      locationName: ghlLocations.name,
+      companyName: ghlLocations.companyName,
+      tags: ghlLocations.tags,
+      checkedAt: a2pStatus.checkedAt,
+      brandStatus: a2pStatus.brandStatus,
+      campaignStatus: a2pStatus.campaignStatus,
+      sourceUrl: a2pStatus.sourceUrl,
+      notes: a2pStatus.notes,
+    })
+    .from(a2pStatus)
+    .innerJoin(ghlLocations, eq(a2pStatus.locationId, ghlLocations.id))
+    .orderBy(a2pStatus.checkedAt);
+
+  // Group by locationId and keep only the latest
+  const latestByLocation = new Map();
+  latestStatuses.forEach(status => {
+    const existing = latestByLocation.get(status.locationId);
+    if (!existing || new Date(status.checkedAt) > new Date(existing.checkedAt)) {
+      latestByLocation.set(status.locationId, status);
+    }
+  });
+
+  return Array.from(latestByLocation.values());
+}
+
+export async function getNonApprovedA2pCampaigns(tagFilter?: string) {
+  const allStatuses = await getLatestA2pStatus();
+  
+  return allStatuses.filter(status => {
+    // Filter by approval status
+    const isNotApproved = 
+      status.brandStatus !== "Approved" || 
+      status.campaignStatus !== "Approved";
+    
+    if (!isNotApproved) return false;
+    
+    // Filter by tag if specified
+    if (tagFilter && status.tags) {
+      const tags = status.tags.split(',').map((t: string) => t.trim());
+      return tags.includes(tagFilter);
+    }
+    
+    return true;
+  });
+}
+
+export async function updateGhlLocationTags(locationId: string, tags: string) {
+  const db = await getDb();
+  if (!db) return;
+
+  const { ghlLocations } = await import("../drizzle/schema");
+  
+  await db.update(ghlLocations)
+    .set({ tags })
+    .where(eq(ghlLocations.id, locationId));
+}
+
+
+export async function sendDailyA2pSummary() {
+  // Get all non-approved campaigns tagged as "client"
+  const nonApproved = await getNonApprovedA2pCampaigns("client");
+  
+  if (nonApproved.length === 0) {
+    console.log("[A2P] All client campaigns are approved");
+    return { sent: false, count: 0 };
+  }
+
+  // Build summary message
+  const summary = nonApproved.map(status => {
+    const issues = [];
+    if (status.brandStatus !== "Approved") {
+      issues.push(`Brand: ${status.brandStatus}`);
+    }
+    if (status.campaignStatus !== "Approved") {
+      issues.push(`Campaign: ${status.campaignStatus}`);
+    }
+    return `• ${status.locationName} (${status.companyName || "No company"}) - ${issues.join(", ")}\n  Link: ${status.sourceUrl}`;
+  }).join("\n\n");
+
+  const title = `A2P Status Alert: ${nonApproved.length} Client Campaign${nonApproved.length > 1 ? "s" : ""} Not Approved`;
+  const content = `The following client campaigns are not fully approved for A2P messaging:\n\n${summary}\n\nPlease review and complete the A2P registration process for these locations.`;
+
+  // Send notification to owner
+  const { notifyOwner } = await import("./_core/notification");
+  const sent = await notifyOwner({ title, content });
+
+  return { sent, count: nonApproved.length };
+}

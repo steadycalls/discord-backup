@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import ClientDatabase from "./pages/ClientDatabase";
 import ChannelSettings from "./pages/ChannelSettings";
 import Alerts from "./pages/Alerts";
+import A2PStatus from "./pages/A2PStatus";
 
 function Router() {
   return (
@@ -32,6 +33,7 @@ function Router() {
       <Route path={"/analytics"} component={Analytics} />
       <Route path={"/channel-settings"} component={ChannelSettings} />
       <Route path={"/alerts"} component={Alerts} />
+      <Route path={"/a2p"} component={A2PStatus} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

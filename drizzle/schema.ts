@@ -202,3 +202,29 @@ export const activityAlerts = mysqlTable("activity_alerts", {
 
 export type ActivityAlert = typeof activityAlerts.$inferSelect;
 export type InsertActivityAlert = typeof activityAlerts.$inferInsert;
+
+// A2P (Application-to-Person) Messaging Campaign Monitoring
+export const ghlLocations = mysqlTable("ghl_locations", {
+  id: varchar("id", { length: 64 }).primaryKey(), // GHL location/subaccount ID
+  name: text("name").notNull(),
+  companyName: text("companyName"),
+  tags: text("tags"), // Comma-separated tags (e.g., "client", "internal")
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const a2pStatus = mysqlTable("a2p_status", {
+  id: int("id").autoincrement().primaryKey(),
+  locationId: varchar("locationId", { length: 64 }).notNull().references(() => ghlLocations.id, { onDelete: "cascade" }),
+  checkedAt: timestamp("checkedAt").notNull(),
+  brandStatus: varchar("brandStatus", { length: 64 }).notNull(), // "Yet to Start", "In Review", "Approved", "UNKNOWN"
+  campaignStatus: varchar("campaignStatus", { length: 64 }).notNull(), // "Yet to Start", "In Review", "Approved", "UNKNOWN"
+  sourceUrl: text("sourceUrl").notNull(), // Direct link to A2P Wizard page
+  notes: text("notes"), // Error messages or additional context
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type GhlLocation = typeof ghlLocations.$inferSelect;
+export type InsertGhlLocation = typeof ghlLocations.$inferInsert;
+export type A2pStatus = typeof a2pStatus.$inferSelect;
+export type InsertA2pStatus = typeof a2pStatus.$inferInsert;

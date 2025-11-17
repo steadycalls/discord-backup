@@ -306,3 +306,13 @@
 - [ ] Apply CSV data to channel settings
 - [ ] Add download example CSV button
 - [ ] Test CSV import functionality
+
+## A2P Campaign Monitoring
+- [x] Create database schema for GHL locations and A2P status
+- [x] Create backend endpoints for A2P data (list, filter, import)
+- [x] Build A2P status page with sortable/filterable table
+- [x] Add direct links to GHL A2P Wizard pages from table
+- [x] Implement daily summary notification for non-approved campaigns
+- [x] Filter notifications to only include campaigns tagged as "client"
+- [x] Test A2P page with sample data
+- [ ] Push changes to GitHub
