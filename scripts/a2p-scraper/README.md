@@ -74,6 +74,7 @@ pwsh --version
    - Check for Chrome/Edge browser
    - Prompt for your configuration:
      * **API URL**: Your Logic Inbound Systems Manager URL (e.g., `https://systems.logicinbound.com`)
+     * **API Key**: Your authentication key (default: `a2p_6df5c666c1adff802b4aaec5b1d79144c070d06cc952e6aeb06d675acdfd958d`)
      * **GHL Email**: Your GoHighLevel login email
      * **GHL Password**: Your GoHighLevel password
      * **Agency URL**: Your GHL agency URL (e.g., `https://app.gohighlevel.com`)
@@ -306,7 +307,8 @@ a2p-scraper/
 
 ## Security Notes
 
-- **Credentials**: Your GHL password is stored in `config.json` in plain text. Ensure this file is protected with appropriate Windows file permissions.
+- **API Key Authentication**: All uploads to Logic Inbound Systems Manager require a valid API key in the `X-API-Key` header. The default key is `a2p_6df5c666c1adff802b4aaec5b1d79144c070d06cc952e6aeb06d675acdfd958d`. To change it, update the `A2P_API_KEY` environment variable in your deployment settings.
+- **Credentials**: Your GHL password and API key are stored in `config.json`. Ensure this file is protected with appropriate Windows file permissions.
 - **Network**: The scraper communicates with GoHighLevel and your Logic Inbound Systems Manager. Ensure your firewall allows these connections.
 - **Task Scheduler**: The scheduled task runs with your user account privileges. Do not run as a more privileged account unless necessary.
 

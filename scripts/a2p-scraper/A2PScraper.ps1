@@ -72,12 +72,13 @@ if ($Setup -or -not (Test-Path $ConfigFile)) {
     
     $config = @{}
     $config.apiUrl = Read-Host "Enter API URL (e.g., https://systems.logicinbound.com)"
+    $config.apiKey = Read-Host "Enter API Key (from Logic Inbound Systems Manager)"
     $config.ghlEmail = Read-Host "Enter GoHighLevel email"
     $config.ghlPassword = Read-Host "Enter GoHighLevel password" -AsSecureString | ConvertFrom-SecureString
     $config.agencyUrl = Read-Host "Enter Agency URL (e.g., https://app.gohighlevel.com)"
     $config.headless = (Read-Host "Run browser in headless mode? (Y/N)") -eq 'Y'
     $config.screenshotOnError = (Read-Host "Take screenshots on error? (Y/N)") -eq 'Y'
-    $config.maxRetries = [int](Read-Host "Max retries on failure (default: 3)")
+    $config.maxRetries = [int](Read-Host "Max retries on failure (default: 3)"
     
     Save-Configuration $config
     Write-Host "`nConfiguration saved successfully!`n" -ForegroundColor Green
@@ -280,7 +281,12 @@ function Send-ToAPI {
                     notes = "Automated scrape from PowerShell script"
                 } | ConvertTo-Json -Depth 10
                 
-                $response = Invoke-RestMethod -Uri $webhookUrl -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
+                $headers = @{
+                    "Content-Type" = "application/json"
+                    "X-API-Key" = $config.apiKey
+                }
+                
+                $response = Invoke-RestMethod -Uri $webhookUrl -Method Post -Body $body -Headers $headers -ErrorAction Stop
                 
                 $uploadedCount++
                 Write-Log "  Uploaded: $($campaign.locationName)"

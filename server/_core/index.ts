@@ -119,6 +119,17 @@ async function startServer() {
   // A2P Scraper webhook endpoint (for PowerShell script)
   app.post("/api/webhooks/a2p", async (req, res) => {
     try {
+      // Validate API key
+      const { ENV } = await import("./env");
+      const apiKey = req.headers["x-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
+      
+      if (!apiKey || apiKey !== ENV.a2pApiKey) {
+        return res.status(401).json({ 
+          success: false, 
+          error: "Unauthorized: Invalid or missing API key" 
+        });
+      }
+      
       const payload = req.body;
       const { upsertGhlLocation, insertA2pStatus } = await import("../db");
       

@@ -366,3 +366,11 @@
 - [x] Test API request format matches tRPC expectations
 - [x] Fix any errors found (created REST webhook endpoint)
 - [x] Push corrections to GitHub
+
+## A2P Webhook API Key Authentication
+- [x] Generate secure API key for A2P scraper (a2p_6df5c666c1adff802b4aaec5b1d79144c070d06cc952e6aeb06d675acdfd958d)
+- [x] Add API key validation to /api/webhooks/a2p endpoint
+- [x] Update PowerShell scraper to include API key in headers
+- [x] Update Install.ps1 to prompt for API key during setup
+- [x] Update README with API key setup instructions
+- [ ] Push changes to GitHub
