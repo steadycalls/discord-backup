@@ -373,4 +373,4 @@
 - [x] Update PowerShell scraper to include API key in headers
 - [x] Update Install.ps1 to prompt for API key during setup
 - [x] Update README with API key setup instructions
-- [ ] Push changes to GitHub
+- [x] Push changes to GitHub
