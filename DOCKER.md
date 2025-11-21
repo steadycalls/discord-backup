@@ -112,6 +112,167 @@ A2P_API_KEY=a2p_6df5c666c1adff802b4aaec5b1d79144c070d06cc952e6aeb06d675acdfd958d
 
 This key is used by the PowerShell A2P scraper to authenticate webhook uploads.
 
+## SSL/HTTPS Production Deployment
+
+For production deployments, the Docker setup includes Nginx reverse proxy with automatic Let's Encrypt SSL certificates.
+
+### Prerequisites
+
+1. **Domain name** pointing to your server's IP address
+2. **Ports 80 and 443** open in your firewall
+3. **Valid email address** for Let's Encrypt notifications
+
+### Setup Steps
+
+#### 1. Configure Domain
+
+Edit your `.env` file and set your domain:
+
+```env
+DOMAIN=systems.logicinbound.com
+```
+
+#### 2. Start Services
+
+Start all services including Nginx:
+
+```bash
+docker-compose up -d
+```
+
+This starts:
+- PostgreSQL database
+- Node.js application
+- Nginx reverse proxy (HTTP only, initially)
+- Certbot (for SSL certificate management)
+
+#### 3. Obtain SSL Certificates
+
+Run the initialization script with your email:
+
+```bash
+./init-letsencrypt.sh your-email@example.com
+```
+
+This script will:
+1. Request SSL certificates from Let's Encrypt
+2. Automatically switch Nginx to HTTPS configuration
+3. Set up automatic certificate renewal
+
+**For testing** (uses Let's Encrypt staging server):
+
+```bash
+./init-letsencrypt.sh your-email@example.com 1
+```
+
+#### 4. Verify HTTPS Access
+
+Your application is now accessible at:
+
+```
+https://your-domain.com
+```
+
+### SSL Certificate Management
+
+#### Automatic Renewal
+
+Certificates automatically renew every 12 hours via the Certbot container. No manual intervention required.
+
+#### Manual Renewal
+
+To manually renew certificates:
+
+```bash
+docker-compose run --rm certbot renew
+docker-compose exec nginx nginx -s reload
+```
+
+#### Check Certificate Status
+
+```bash
+docker-compose run --rm certbot certificates
+```
+
+### Nginx Configuration
+
+Two Nginx configurations are provided:
+
+1. **app.conf.template** - HTTP only (initial setup)
+2. **app-ssl.conf.template** - HTTPS with SSL (production)
+
+The `init-letsencrypt.sh` script automatically switches between them.
+
+#### Manual Configuration Switch
+
+To manually switch to HTTPS configuration:
+
+```bash
+docker-compose exec nginx sh -c "envsubst '\$DOMAIN' < /etc/nginx/templates/app-ssl.conf.template > /etc/nginx/conf.d/default.conf && nginx -s reload"
+```
+
+To switch back to HTTP:
+
+```bash
+docker-compose exec nginx sh -c "envsubst '\$DOMAIN' < /etc/nginx/templates/app.conf.template > /etc/nginx/conf.d/default.conf && nginx -s reload"
+```
+
+### Security Features
+
+The Nginx configuration includes:
+
+- **TLS 1.2 and 1.3** only
+- **Modern cipher suites** (Mozilla Intermediate profile)
+- **HSTS** (HTTP Strict Transport Security)
+- **OCSP stapling** for faster certificate validation
+- **Security headers** (X-Frame-Options, X-Content-Type-Options, etc.)
+- **WebSocket support** for real-time features
+- **Static asset caching** for improved performance
+
+### Troubleshooting SSL
+
+#### Certificate Request Failed
+
+**Check DNS:**
+```bash
+nslookup your-domain.com
+```
+
+Domain must point to your server's IP.
+
+**Check firewall:**
+```bash
+sudo ufw status
+```
+
+Ports 80 and 443 must be open.
+
+**Check Nginx logs:**
+```bash
+docker-compose logs nginx
+```
+
+**Check Certbot logs:**
+```bash
+docker-compose logs certbot
+```
+
+#### Certificate Expired
+
+If automatic renewal fails:
+
+```bash
+# Force renewal
+docker-compose run --rm certbot renew --force-renewal
+
+# Reload Nginx
+docker-compose exec nginx nginx -s reload
+```
+
+#### Mixed Content Warnings
+
+Ensure all resources (images, scripts, stylesheets) use HTTPS URLs or relative paths.
+
 ## Docker Commands
 
 ### Start Services

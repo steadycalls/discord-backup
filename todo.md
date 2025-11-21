@@ -383,3 +383,12 @@
 - [x] Create DOCKER.md deployment documentation
 - [x] Test Docker build and container startup (to be tested in deployment environment)
 - [x] Push Docker configuration to GitHub
+
+## Nginx Reverse Proxy with SSL
+- [x] Create Nginx configuration template
+- [x] Create SSL-enabled Nginx configuration
+- [x] Add Nginx and Certbot to docker-compose.yml
+- [x] Create certificate initialization script
+- [x] Create nginx directory structure
+- [x] Update DOCKER.md with Nginx setup instructions
+- [ ] Push Nginx configuration to GitHub
