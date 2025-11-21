@@ -422,11 +422,103 @@ docker-compose exec backup ls /backups
 docker cp li-systems-backup:/backups/backup_discord_archive_20240101_120000.sql.gz .
 ```
 
-### Backup to External Storage
+### S3 Off-Site Backup (Recommended for Production)
 
-For production, configure external backup storage:
+The backup system includes built-in S3 integration for automatic off-site backups.
 
-**1. Mount external directory:**
+**Configuration:**
+
+Add these variables to your `.env` file:
+
+```env
+# S3 Configuration
+S3_BUCKET=my-company-backups           # Your S3 bucket name
+S3_PREFIX=database-backups/            # Folder prefix (must end with /)
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+AWS_REGION=us-east-1                   # AWS region
+S3_STORAGE_CLASS=STANDARD_IA           # Storage class
+S3_RETENTION_DAYS=90                   # Days to keep S3 backups
+```
+
+**S3 Storage Classes:**
+
+- `STANDARD` - Frequent access, highest cost
+- `STANDARD_IA` - Infrequent access, lower cost (recommended)
+- `GLACIER` - Archive, lowest cost, slower retrieval
+- `GLACIER_DEEP_ARCHIVE` - Long-term archive, cheapest
+
+**Setup Steps:**
+
+1. **Create S3 bucket** in AWS Console
+2. **Create IAM user** with S3 permissions:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "s3:PutObject",
+           "s3:GetObject",
+           "s3:ListBucket",
+           "s3:DeleteObject"
+         ],
+         "Resource": [
+           "arn:aws:s3:::my-company-backups",
+           "arn:aws:s3:::my-company-backups/*"
+         ]
+       }
+     ]
+   }
+   ```
+3. **Configure credentials** in `.env` file
+4. **Restart backup service**: `docker-compose restart backup`
+
+**How It Works:**
+
+- Backups are created locally first
+- After successful local backup, file is uploaded to S3
+- S3 retention policy automatically deletes old backups
+- Local backups remain subject to local retention policy
+- If S3 upload fails, backup is still available locally
+
+**List S3 Backups:**
+
+```bash
+docker-compose exec backup /scripts/restore-from-s3.sh
+```
+
+**Download Backup from S3:**
+
+```bash
+# List available backups
+docker-compose exec backup /scripts/restore-from-s3.sh
+
+# Download specific backup
+docker-compose exec backup /scripts/restore-from-s3.sh backup_discord_archive_20240101_120000.sql.gz
+```
+
+**Restore from S3 Backup:**
+
+```bash
+# Download from S3
+docker-compose exec backup /scripts/restore-from-s3.sh backup_discord_archive_20240101_120000.sql.gz
+
+# Restore to database
+docker-compose exec backup /scripts/restore-database.sh backup_discord_archive_20240101_120000.sql.gz
+```
+
+**Monitor S3 Uploads:**
+
+```bash
+# Check backup logs for S3 upload status
+docker-compose logs backup | grep S3
+```
+
+### Alternative: Mount External Directory
+
+For local network storage, mount an external directory:
 
 Edit `docker-compose.yml`:
 
@@ -437,17 +529,18 @@ backup:
     - /path/to/external/storage:/backups  # External mount
 ```
 
-**2. Use cloud storage:**
-
-Modify `backup-database.sh` to upload to S3, Google Cloud Storage, or other cloud providers after creating the backup.
-
 ### Backup Best Practices
 
-1. **Test restorations regularly** - Verify backups can be restored successfully
-2. **Monitor backup logs** - Check `docker-compose logs backup` for errors
-3. **Store backups off-site** - Use external storage or cloud backup
-4. **Adjust retention** - Balance storage costs with recovery needs
-5. **Verify integrity** - Run verification script weekly
+1. **Enable S3 backups** - Always configure S3 for off-site disaster recovery
+2. **Test restorations regularly** - Verify backups can be restored successfully (monthly recommended)
+3. **Monitor backup logs** - Check `docker-compose logs backup` for errors and S3 upload failures
+4. **Use appropriate storage class** - STANDARD_IA for backups accessed occasionally, GLACIER for long-term archives
+5. **Set different retention policies** - Keep local backups for 30 days, S3 backups for 90+ days
+6. **Verify integrity** - Run verification script weekly on both local and S3 backups
+7. **Secure credentials** - Use IAM roles with minimal permissions, rotate access keys regularly
+8. **Enable S3 versioning** - Protect against accidental deletion or corruption
+9. **Monitor costs** - Review S3 storage costs monthly and adjust retention as needed
+10. **Document recovery procedures** - Ensure team knows how to restore from S3 in emergencies
 
 ## External Services
 

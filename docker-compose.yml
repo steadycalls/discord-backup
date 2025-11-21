@@ -103,18 +103,28 @@ services:
     depends_on:
       - postgres
     environment:
+      # Database connection
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-discord_archive}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      # Backup configuration
       BACKUP_DIR: /backups
       RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      # S3 configuration (optional)
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_PREFIX: ${S3_PREFIX:-database-backups/}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      S3_STORAGE_CLASS: ${S3_STORAGE_CLASS:-STANDARD_IA}
+      S3_RETENTION_DAYS: ${S3_RETENTION_DAYS:-90}
     volumes:
       - ./scripts/backup:/scripts:ro
       - backup_data:/backups
     entrypoint: /bin/sh
-    command: -c "apk add --no-cache bash && while :; do /scripts/backup-database.sh; sleep ${BACKUP_INTERVAL:-86400}; done"
+    command: -c "apk add --no-cache bash aws-cli && while :; do /scripts/backup-database.sh; sleep ${BACKUP_INTERVAL:-86400}; done"
 
 volumes:
   postgres_data:

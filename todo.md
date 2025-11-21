@@ -402,3 +402,12 @@
 - [x] Update docker-compose.yml with backup volumes
 - [x] Create backup documentation in DOCKER.md
 - [x] Push backup configuration to GitHub
+
+## S3 Off-Site Backup Integration
+- [x] Install AWS CLI in backup container (will be added to docker-compose)
+- [x] Add S3 upload functionality to backup script
+- [x] Add S3 configuration to environment variables
+- [x] Create S3 backup cleanup script (integrated in backup script)
+- [x] Create S3 backup download/restore script
+- [x] Update DOCKER.md with S3 configuration instructions
+- [ ] Push S3 backup integration to GitHub

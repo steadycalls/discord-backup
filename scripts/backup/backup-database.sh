@@ -120,6 +120,46 @@ else
     log "No old backups to delete"
 fi
 
+# Upload to S3 if configured
+if [ -n "$S3_BUCKET" ] && [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+    log ""
+    log "Uploading backup to S3..."
+    log "Bucket: s3://$S3_BUCKET/$S3_PREFIX"
+    
+    S3_PATH="s3://$S3_BUCKET/${S3_PREFIX}$(basename "$BACKUP_FILE")"
+    
+    if aws s3 cp "$BACKUP_FILE" "$S3_PATH" \
+        --storage-class ${S3_STORAGE_CLASS:-STANDARD_IA} \
+        --region "${AWS_REGION:-us-east-1}" 2>&1 | tee -a "$BACKUP_LOG"; then
+        
+        log_success "Backup uploaded to S3: $S3_PATH"
+        
+        # Apply S3 retention policy if configured
+        if [ -n "$S3_RETENTION_DAYS" ] && [ "$S3_RETENTION_DAYS" -gt 0 ]; then
+            log "Applying S3 retention policy (${S3_RETENTION_DAYS} days)..."
+            
+            CUTOFF_DATE=$(date -d "${S3_RETENTION_DAYS} days ago" +%Y%m%d 2>/dev/null || date -v-${S3_RETENTION_DAYS}d +%Y%m%d)
+            
+            aws s3 ls "s3://$S3_BUCKET/$S3_PREFIX" --region "${AWS_REGION:-us-east-1}" | while read -r line; do
+                BACKUP_DATE=$(echo "$line" | grep -oP 'backup_[^_]+_\K[0-9]{8}' || true)
+                BACKUP_NAME=$(echo "$line" | awk '{print $4}')
+                
+                if [ -n "$BACKUP_DATE" ] && [ "$BACKUP_DATE" -lt "$CUTOFF_DATE" ]; then
+                    log "Deleting old S3 backup: $BACKUP_NAME"
+                    aws s3 rm "s3://$S3_BUCKET/$S3_PREFIX$BACKUP_NAME" --region "${AWS_REGION:-us-east-1}" 2>&1 | tee -a "$BACKUP_LOG" || true
+                fi
+            done
+            
+            log_success "S3 retention policy applied"
+        fi
+    else
+        log_error "Failed to upload backup to S3"
+        log_warning "Backup is still available locally at: $BACKUP_FILE"
+    fi
+elif [ -n "$S3_BUCKET" ]; then
+    log_warning "S3 upload skipped: AWS credentials not configured"
+fi
+
 # Count total backups
 TOTAL_BACKUPS=$(find "$BACKUP_DIR" -name "backup_${POSTGRES_DB}_*.sql.gz" -type f | wc -l)
 TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
@@ -128,9 +168,14 @@ log ""
 log "=========================================="
 log "Backup Summary"
 log "=========================================="
-log "Total backups: $TOTAL_BACKUPS"
-log "Total size: $TOTAL_SIZE"
+log "Total local backups: $TOTAL_BACKUPS"
+log "Total local size: $TOTAL_SIZE"
 log "Latest backup: $(basename "$BACKUP_FILE")"
+if [ -n "$S3_BUCKET" ] && [ -n "$AWS_ACCESS_KEY_ID" ]; then
+    log "S3 backup: Enabled (s3://$S3_BUCKET/$S3_PREFIX)"
+else
+    log "S3 backup: Disabled"
+fi
 log_success "Backup process completed successfully"
 log "=========================================="
 
