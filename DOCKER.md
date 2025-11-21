@@ -18,6 +18,20 @@ The Docker setup includes:
   - Automatic migrations on startup
   - Persistent data storage
 
+- **Automated backup system**
+  - Daily database backups with compression
+  - Configurable retention policies
+  - S3 off-site backup integration
+  - One-command restoration
+
+## Important Documentation
+
+📋 **[Disaster Recovery Runbook](./DISASTER_RECOVERY.md)** - Complete system restoration procedures  
+✅ **[Quick Recovery Checklist](./docs/RECOVERY_CHECKLIST.md)** - Print-ready recovery steps  
+📞 **[Emergency Contacts](./docs/EMERGENCY_CONTACTS.md)** - Team and vendor contact information
+
+> **Note:** Review the disaster recovery documentation before deploying to production. Test recovery procedures quarterly to ensure team readiness.
+
 ## Prerequisites
 
 - **Docker**: Version 20.10 or higher ([Install Docker](https://docs.docker.com/get-docker/))
