@@ -374,3 +374,12 @@
 - [x] Update Install.ps1 to prompt for API key during setup
 - [x] Update README with API key setup instructions
 - [x] Push changes to GitHub
+
+## Docker Containerization
+- [x] Create Dockerfile for Node.js application
+- [x] Create docker-compose.yml with app and PostgreSQL services
+- [x] Create .dockerignore file
+- [x] Create .env.example for Docker environment variables
+- [x] Create DOCKER.md deployment documentation
+- [x] Test Docker build and container startup (to be tested in deployment environment)
+- [ ] Push Docker configuration to GitHub

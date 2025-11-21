@@ -1,0 +1,58 @@
+# Dependencies
+node_modules
+npm-debug.log
+pnpm-debug.log
+yarn-error.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Development
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Build outputs (will be created during build)
+dist
+.next
+out
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+README.md
+DOCKER.md
+*.md
+
+# Scripts (external services)
+scripts/discord-bot
+scripts/a2p-scraper
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+.nyc_output
+
+# Temporary files
+tmp
+temp
+*.tmp

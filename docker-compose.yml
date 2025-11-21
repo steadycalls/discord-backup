@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: li-systems-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-discord_archive}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Logic Inbound Systems Manager Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: li-systems-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-discord_archive}
+      
+      # Application
+      NODE_ENV: production
+      PORT: ${APP_PORT:-3000}
+      
+      # Authentication (Manus OAuth)
+      VITE_APP_ID: ${VITE_APP_ID}
+      JWT_SECRET: ${JWT_SECRET}
+      OAUTH_SERVER_URL: ${OAUTH_SERVER_URL}
+      VITE_OAUTH_PORTAL_URL: ${VITE_OAUTH_PORTAL_URL}
+      OWNER_OPEN_ID: ${OWNER_OPEN_ID}
+      OWNER_NAME: ${OWNER_NAME}
+      
+      # Manus Built-in APIs
+      BUILT_IN_FORGE_API_URL: ${BUILT_IN_FORGE_API_URL}
+      BUILT_IN_FORGE_API_KEY: ${BUILT_IN_FORGE_API_KEY}
+      VITE_FRONTEND_FORGE_API_KEY: ${VITE_FRONTEND_FORGE_API_KEY}
+      VITE_FRONTEND_FORGE_API_URL: ${VITE_FRONTEND_FORGE_API_URL}
+      
+      # Application Settings
+      VITE_APP_TITLE: ${VITE_APP_TITLE:-Logic Inbound Systems Manager}
+      VITE_APP_LOGO: ${VITE_APP_LOGO}
+      
+      # Analytics
+      VITE_ANALYTICS_ENDPOINT: ${VITE_ANALYTICS_ENDPOINT}
+      VITE_ANALYTICS_WEBSITE_ID: ${VITE_ANALYTICS_WEBSITE_ID}
+      
+      # A2P API Key
+      A2P_API_KEY: ${A2P_API_KEY:-a2p_6df5c666c1adff802b4aaec5b1d79144c070d06cc952e6aeb06d675acdfd958d}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - ./drizzle:/app/drizzle
+    command: sh -c "pnpm db:push && node server/_core/index.js"
+
+volumes:
+  postgres_data:
+    driver: local
