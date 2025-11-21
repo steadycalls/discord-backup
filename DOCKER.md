@@ -355,17 +355,99 @@ Migrations run automatically on startup, but you can run them manually:
 docker-compose exec app pnpm db:push
 ```
 
-### Backup Database
+### Automated Backups
+
+The Docker setup includes automated database backups with retention policies.
+
+**Configuration** (in `.env`):
+
+```env
+BACKUP_INTERVAL=86400          # Backup every 24 hours
+BACKUP_RETENTION_DAYS=30       # Keep backups for 30 days
+```
+
+**Backup service** runs automatically and:
+- Creates compressed backups every 24 hours (configurable)
+- Stores backups in a Docker volume
+- Automatically deletes backups older than retention period
+- Logs all backup operations
+
+### Manual Backup
+
+Create a backup manually:
 
 ```bash
-docker-compose exec postgres pg_dump -U postgres discord_archive > backup.sql
+docker-compose exec backup /scripts/backup-database.sh
+```
+
+### List Available Backups
+
+```bash
+docker-compose exec backup ls -lh /backups
+```
+
+### Verify Backup Integrity
+
+Check all backups for corruption:
+
+```bash
+docker-compose exec backup /scripts/verify-backup.sh
 ```
 
 ### Restore Database
 
+**List available backups:**
+
 ```bash
-cat backup.sql | docker-compose exec -T postgres psql -U postgres discord_archive
+docker-compose exec backup /scripts/restore-database.sh
 ```
+
+**Restore from specific backup:**
+
+```bash
+docker-compose exec backup /scripts/restore-database.sh backup_discord_archive_20240101_120000.sql.gz
+```
+
+**Warning:** Restoration replaces all current data. You'll be prompted to confirm.
+
+### Access Backup Files
+
+Backups are stored in a Docker volume. To copy a backup to your host:
+
+```bash
+# List backups
+docker-compose exec backup ls /backups
+
+# Copy backup to current directory
+docker cp li-systems-backup:/backups/backup_discord_archive_20240101_120000.sql.gz .
+```
+
+### Backup to External Storage
+
+For production, configure external backup storage:
+
+**1. Mount external directory:**
+
+Edit `docker-compose.yml`:
+
+```yaml
+backup:
+  volumes:
+    - ./scripts/backup:/scripts:ro
+    - /path/to/external/storage:/backups  # External mount
+```
+
+**2. Use cloud storage:**
+
+Modify `backup-database.sh` to upload to S3, Google Cloud Storage, or other cloud providers after creating the backup.
+
+### Backup Best Practices
+
+1. **Test restorations regularly** - Verify backups can be restored successfully
+2. **Monitor backup logs** - Check `docker-compose logs backup` for errors
+3. **Store backups off-site** - Use external storage or cloud backup
+4. **Adjust retention** - Balance storage costs with recovery needs
+5. **Verify integrity** - Run verification script weekly
 
 ## External Services
 

@@ -96,10 +96,32 @@ services:
       - certbot_conf:/etc/letsencrypt:rw
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done;'"
 
+  # Database Backup Service
+  backup:
+    image: postgres:16-alpine
+    container_name: li-systems-backup
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-discord_archive}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    volumes:
+      - ./scripts/backup:/scripts:ro
+      - backup_data:/backups
+    entrypoint: /bin/sh
+    command: -c "apk add --no-cache bash && while :; do /scripts/backup-database.sh; sleep ${BACKUP_INTERVAL:-86400}; done"
+
 volumes:
   postgres_data:
     driver: local
   certbot_www:
     driver: local
   certbot_conf:
+    driver: local
+  backup_data:
     driver: local
